@@ -106,7 +106,8 @@ def _parse_vless(line: str) -> dict:
 
 
 def _parse_vmess(line: str) -> dict:
-    payload = base64.b64decode(line[8:] + "==").decode("utf-8", errors="replace")
+    _b64 = line[8:]
+    payload = base64.b64decode(_b64 + "=" * (-len(_b64) % 4)).decode("utf-8", errors="replace")
     data = json.loads(payload)
     outbound: dict = {
         "type": "vmess",
@@ -156,7 +157,7 @@ def _parse_ss(line: str) -> dict:
         password = unquote(p.password or "")
         host, port = p.hostname, p.port
     else:
-        userinfo_host = line[5:].split("#")[0]
+        userinfo_host = line[5:]
         at_pos = userinfo_host.rfind("@")
         userinfo = userinfo_host[:at_pos]
         hostport = userinfo_host[at_pos + 1:]

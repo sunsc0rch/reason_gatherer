@@ -1,10 +1,20 @@
 import asyncio
+import base64
 import pytest
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
-from vpn_collector.tester import tcp_check, tcp_filter
+from vpn_collector.tester import tcp_check, tcp_filter, find_singbox, generate_singbox_config
 
 VLESS1 = "vless://uuid1@1.2.3.4:443?type=tcp#Server1"
 TROJAN = "trojan://password@9.10.11.12:443?sni=example.com#TrojanServer"
+
+VLESS_TLS = "vless://some-uuid@host.com:443?type=tcp&security=tls&sni=host.com#Server"
+VMESS_PAYLOAD = '{"v":"2","ps":"test","add":"vmess.host","port":"443","id":"myuuid","aid":"0","net":"tcp","type":"none","host":"","path":"","tls":"tls"}'
+VMESS_LINE = "vmess://" + base64.b64encode(VMESS_PAYLOAD.encode()).decode()
+TROJAN_LINE = "trojan://mypassword@trojan.host:443?sni=trojan.host#TrojanServer"
+SS_LINE = "ss://YWVzLTI1Ni1nY206cGFzcw==@ss.host:8388#SSServer"
+HY2_LINE = "hy2://mypassword@hy2.host:443?sni=hy2.host#Hy2Server"
+TUIC_LINE = "tuic://myuuid:mypass@tuic.host:443?sni=tuic.host&congestion_control=bbr#TuicServer"
 
 
 class TestTcpCheck:
@@ -63,19 +73,6 @@ class TestTcpFilter:
         with patch("asyncio.open_connection", fake_open):
             result = await tcp_filter([VLESS1, "not-a-config"], concurrency=2, timeout=1.0)
         assert result == [VLESS1]
-
-
-import base64
-from pathlib import Path
-from vpn_collector.tester import find_singbox, generate_singbox_config
-
-VLESS_TLS = "vless://some-uuid@host.com:443?type=tcp&security=tls&sni=host.com#Server"
-VMESS_PAYLOAD = '{"v":"2","ps":"test","add":"vmess.host","port":"443","id":"myuuid","aid":"0","net":"tcp","type":"none","host":"","path":"","tls":"tls"}'
-VMESS_LINE = "vmess://" + base64.b64encode(VMESS_PAYLOAD.encode()).decode()
-TROJAN_LINE = "trojan://mypassword@trojan.host:443?sni=trojan.host#TrojanServer"
-SS_LINE = "ss://YWVzLTI1Ni1nY206cGFzcw==@ss.host:8388#SSServer"
-HY2_LINE = "hy2://mypassword@hy2.host:443?sni=hy2.host#Hy2Server"
-TUIC_LINE = "tuic://myuuid:mypass@tuic.host:443?sni=tuic.host&congestion_control=bbr#TuicServer"
 
 
 class TestFindSingbox:
