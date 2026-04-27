@@ -51,6 +51,22 @@ vpn_collector/
 
 Each repo is scanned for files via GitHub raw content API. Files are filtered before processing (see Parser section).
 
+### Managing Sources
+
+Sources are stored in `sources.json` (auto-created on first run). Two ways to add new ones:
+
+**Manual:** Add a line to `sources.json` directly, or run:
+```
+python main.py --add-source <github_repo_or_raw_url>
+```
+The command validates that the source actually yields VPN configs before saving.
+
+**Auto-sync from GitHub stars:**
+```
+python main.py --sync-stars sunsc0rch
+```
+Calls `api.github.com/users/{username}/starred` (no auth required for public profiles), compares against already-known sources, appends any new repos. VPN relevance is determined at collection time by `parser.py`'s file detection — non-VPN repos are silently skipped, no pre-filtering by repo name needed.
+
 ---
 
 ## Module: `parser.py`
@@ -113,6 +129,8 @@ Output files always contain the **original config string** with only the `#name`
 
 **Parallelism:** Up to 5 concurrent tunnel tests (each on its own port).
 
+**System proxy isolation:** All connections (TCP checks, HTTP requests, sing-box subprocesses) run with `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY`, `http_proxy`, `https_proxy`, `all_proxy` environment variables explicitly cleared. aiohttp sessions use `trust_env=False`. This ensures Throne's system proxy (if active) does not interfere with test results.
+
 **Failure handling:** Tunnel connection timeout/error → mark `---`, excluded from `known_good.txt`.
 
 ### Output Name Format
@@ -161,6 +179,8 @@ python main.py --collect          # Stage 1: fetch sources, TCP filter → candi
 python main.py --test             # Stage 2: tunnel test candidates.txt → known_good.txt
 python main.py --full             # Both stages sequentially
 python main.py --stats            # Show counts per run file and known_good.txt
+python main.py --add-source <url> # Add new source repo or raw URL, validate, save
+python main.py --sync-stars <user># Fetch GitHub stars, add new VPN repos to sources
 ```
 
 ---
@@ -201,3 +221,7 @@ Key constants:
 - `pysocks` — SOCKS5 proxy support
 - `tqdm` — progress bars
 - External binary: `sing-box` (bundled with Throne, auto-discovered)
+
+## Data Files
+
+- `sources.json` — persisted list of all sources (repos + raw URLs), auto-created and updated by `--add-source` / `--sync-stars`
