@@ -117,6 +117,8 @@ class TestGenerateSingboxConfig:
         assert out["type"] == "shadowsocks"
         assert out["server"] == "ss.host"
         assert out["server_port"] == 8388
+        assert out["method"] == "aes-256-gcm"
+        assert out["password"] == "pass"
 
     def test_hy2_structure(self):
         out = generate_singbox_config(HY2_LINE, socks_port=11004)["outbounds"][0]

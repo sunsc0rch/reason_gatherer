@@ -163,9 +163,9 @@ def _parse_trojan(line: str) -> dict:
 
 def _parse_ss(line: str) -> dict:
     p = urlparse(line)
-    if p.username and p.hostname and p.port:
+    if p.username and p.password and p.hostname and p.port:
         method = unquote(p.username)
-        password = unquote(p.password or "")
+        password = unquote(p.password)
         host, port = p.hostname, p.port
     else:
         userinfo_host = line[5:]

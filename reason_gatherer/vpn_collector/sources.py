@@ -47,7 +47,7 @@ def sync_stars(username: str, sources_file: Path) -> int:
     page = 1
     while True:
         try:
-            resp = requests.get(
+            resp = _clean_session().get(
                 f"{GITHUB_API}/users/{username}/starred",
                 params={"per_page": 100, "page": page},
                 timeout=10,

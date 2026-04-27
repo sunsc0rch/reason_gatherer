@@ -58,25 +58,29 @@ class TestAddSource:
 
 
 class TestSyncStars:
-    @patch("vpn_collector.sources.requests.get")
-    def test_adds_new_repos(self, mock_get, sources_file):
+    @patch("vpn_collector.sources._clean_session")
+    def test_adds_new_repos(self, mock_clean_session, sources_file):
         sources_file.write_text(json.dumps([]))
+        mock_session = MagicMock()
         mock_resp = MagicMock()
         mock_resp.json.side_effect = [
             [{"full_name": "user/vpn-repo1"}, {"full_name": "user/vpn-repo2"}],
             [],
         ]
         mock_resp.status_code = 200
-        mock_get.return_value = mock_resp
+        mock_session.get.return_value = mock_resp
+        mock_clean_session.return_value = mock_session
         assert sync_stars("testuser", sources_file) == 2
 
-    @patch("vpn_collector.sources.requests.get")
-    def test_skips_existing(self, mock_get, sources_file):
+    @patch("vpn_collector.sources._clean_session")
+    def test_skips_existing(self, mock_clean_session, sources_file):
         sources_file.write_text(json.dumps([{"type": "repo", "value": "user/vpn-repo1"}]))
+        mock_session = MagicMock()
         mock_resp = MagicMock()
         mock_resp.json.side_effect = [[{"full_name": "user/vpn-repo1"}], []]
         mock_resp.status_code = 200
-        mock_get.return_value = mock_resp
+        mock_session.get.return_value = mock_resp
+        mock_clean_session.return_value = mock_session
         assert sync_stars("testuser", sources_file) == 0
 
 
