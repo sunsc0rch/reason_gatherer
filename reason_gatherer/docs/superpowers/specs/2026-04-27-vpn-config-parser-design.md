@@ -49,7 +49,7 @@ vpn_collector/
 - `freefq/free`
 - `peasoft/NoMoreVPN`
 
-Each repo is scanned for files via GitHub raw content API. Files are filtered before processing (see Parser section).
+Each repo is scanned via GitHub Trees API (`/repos/{owner}/{repo}/git/trees/HEAD?recursive=1`), which returns the full file tree in a single request. All `.txt` files at any depth are collected, then filtered before processing (see Parser section). Subdirectories are traversed automatically — no separate per-directory requests needed.
 
 ### Managing Sources
 
