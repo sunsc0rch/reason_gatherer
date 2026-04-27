@@ -3,11 +3,22 @@ import base64
 import json
 import logging
 import os
+import random
+import subprocess
+import tempfile
+import time
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs, unquote
 
-from vpn_collector.config import TCP_TIMEOUT, TCP_CONCURRENCY, PROXY_ENV_VARS, SINGBOX_SEARCH_PATHS
-from vpn_collector.parser import extract_host_port
+import requests
+
+from vpn_collector.config import (
+    TCP_TIMEOUT, TCP_CONCURRENCY, PROXY_ENV_VARS, SINGBOX_SEARCH_PATHS,
+    MIN_SPEED_MBPS, SPEEDTEST_URL, CLAUDE_CHECK_URL,
+    CLAUDE_BLOCK_KEYWORDS, CLAUDE_BLOCK_URL_KEYWORDS,
+    SINGBOX_STARTUP_TIMEOUT, TUNNEL_CONCURRENCY, SOCKS_PORT_RANGE,
+)
+from vpn_collector.parser import extract_host_port, extract_name, set_name
 
 logger = logging.getLogger(__name__)
 
@@ -228,3 +239,118 @@ def generate_singbox_config(config_line: str, socks_port: int) -> dict:
     else:
         raise ValueError(f"Unsupported protocol: {line[:20]}")
     return _singbox_wrapper(socks_port, outbound)
+
+
+def _socks_session(socks_port: int) -> requests.Session:
+    session = requests.Session()
+    session.trust_env = False
+    session.proxies = {
+        "http": f"socks5h://127.0.0.1:{socks_port}",
+        "https": f"socks5h://127.0.0.1:{socks_port}",
+    }
+    return session
+
+
+def speedtest_via_socks(socks_port: int) -> float:
+    try:
+        with _socks_session(socks_port) as session:
+            start = time.time()
+            resp = session.get(SPEEDTEST_URL, stream=True, timeout=15)
+            downloaded = 0
+            for chunk in resp.iter_content(chunk_size=65536):
+                downloaded += len(chunk)
+                if downloaded >= 1024 * 1024:
+                    break
+            elapsed = time.time() - start
+            return (downloaded * 8) / (elapsed * 1_000_000) if elapsed > 0 else 0.0
+    except Exception:
+        return 0.0
+
+
+def check_claude_via_socks(socks_port: int) -> str:
+    try:
+        with _socks_session(socks_port) as session:
+            resp = session.get(CLAUDE_CHECK_URL, timeout=15, allow_redirects=True)
+            if resp.status_code == 451:
+                return "---"
+            final_url = resp.url.lower()
+            if any(kw in final_url for kw in CLAUDE_BLOCK_URL_KEYWORDS):
+                return "---"
+            body = resp.text.lower()
+            if any(kw in body for kw in CLAUDE_BLOCK_KEYWORDS):
+                return "---"
+            return "+++"
+    except Exception:
+        return "---"
+
+
+def test_config_tunnel(
+    config_line: str, singbox_path: str, socks_port: int
+) -> str | None:
+    clean_env = {k: v for k, v in os.environ.items() if k not in PROXY_ENV_VARS}
+    try:
+        cfg = generate_singbox_config(config_line, socks_port)
+    except Exception as e:
+        logger.debug(f"Config generation failed: {e}")
+        return None
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as tmp:
+        json.dump(cfg, tmp)
+        cfg_path = tmp.name
+
+    proc = None
+    try:
+        proc = subprocess.Popen(
+            [singbox_path, "run", "-c", cfg_path],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            env=clean_env,
+        )
+        time.sleep(SINGBOX_STARTUP_TIMEOUT)
+        if proc.poll() is not None:
+            return None
+        if speedtest_via_socks(socks_port) < MIN_SPEED_MBPS:
+            return None
+        marker = check_claude_via_socks(socks_port)
+        return set_name(config_line, f"{marker}{extract_name(config_line)}")
+    except Exception as e:
+        logger.debug(f"Tunnel test error: {e}")
+        return None
+    finally:
+        if proc and proc.poll() is None:
+            proc.terminate()
+            try:
+                proc.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+        try:
+            os.unlink(cfg_path)
+        except Exception:
+            pass
+
+
+async def tunnel_filter(
+    candidates: list[str],
+    singbox_path: str,
+    concurrency: int = TUNNEL_CONCURRENCY,
+) -> list[str]:
+    semaphore = asyncio.Semaphore(concurrency)
+    used_ports: set[int] = set()
+
+    def get_port() -> int:
+        while True:
+            p = random.randint(*SOCKS_PORT_RANGE)
+            if p not in used_ports:
+                used_ports.add(p)
+                return p
+
+    async def test_one(config: str) -> str | None:
+        port = get_port()
+        async with semaphore:
+            loop = asyncio.get_event_loop()
+            return await loop.run_in_executor(
+                None, test_config_tunnel, config, singbox_path, port
+            )
+
+    results = await asyncio.gather(*[test_one(c) for c in candidates])
+    return [r for r in results if r is not None]

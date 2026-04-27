@@ -137,3 +137,127 @@ class TestGenerateSingboxConfig:
         assert out["uuid"] == "myuuid"
         assert out["password"] == "mypass"
         assert out["congestion_control"] == "bbr"
+
+
+import subprocess
+import time
+from unittest.mock import patch, MagicMock
+from vpn_collector.tester import (
+    speedtest_via_socks, check_claude_via_socks,
+    test_config_tunnel as _test_config_tunnel, tunnel_filter,
+)
+test_config_tunnel = _test_config_tunnel
+test_config_tunnel.__test__ = False
+
+VLESS_TEST = "vless://some-uuid@host.com:443?type=tcp&security=tls&sni=host.com#TestServer"
+
+
+class TestSpeedtestViaSocks:
+    def test_returns_speed_in_mbps(self):
+        mock_resp = MagicMock()
+        mock_resp.iter_content.return_value = [b"x" * (1024 * 1024)]
+        mock_resp.__enter__ = lambda s: s
+        mock_resp.__exit__ = MagicMock(return_value=False)
+        with patch("vpn_collector.tester.requests.Session") as MockSession, \
+             patch("vpn_collector.tester.time.time", side_effect=[0.0, 1.0]):
+            mock_session = MagicMock()
+            mock_session.get.return_value = mock_resp
+            MockSession.return_value.__enter__ = lambda s: mock_session
+            MockSession.return_value.__exit__ = MagicMock(return_value=False)
+            assert speedtest_via_socks(12000) > 0
+
+    def test_returns_zero_on_error(self):
+        with patch("vpn_collector.tester.requests.Session") as MockSession:
+            mock_session = MagicMock()
+            mock_session.get.side_effect = Exception("fail")
+            MockSession.return_value.__enter__ = lambda s: mock_session
+            MockSession.return_value.__exit__ = MagicMock(return_value=False)
+            assert speedtest_via_socks(12001) == 0.0
+
+
+class TestCheckClaudeViaSocks:
+    def _mock_session(self, mock_get_cls, resp):
+        mock_session = MagicMock()
+        mock_session.get.return_value = resp
+        mock_get_cls.return_value.__enter__ = lambda s: mock_session
+        mock_get_cls.return_value.__exit__ = MagicMock(return_value=False)
+
+    def test_plus_when_accessible(self):
+        resp = MagicMock(status_code=200, url="https://claude.com/", text="<html>Claude</html>")
+        with patch("vpn_collector.tester.requests.Session") as M:
+            self._mock_session(M, resp)
+            assert check_claude_via_socks(12002) == "+++"
+
+    def test_minus_on_keyword_in_body(self):
+        resp = MagicMock(status_code=200, url="https://claude.com/", text="app unavailable in region")
+        with patch("vpn_collector.tester.requests.Session") as M:
+            self._mock_session(M, resp)
+            assert check_claude_via_socks(12003) == "---"
+
+    def test_minus_on_status_451(self):
+        resp = MagicMock(status_code=451, url="https://claude.com/", text="")
+        with patch("vpn_collector.tester.requests.Session") as M:
+            self._mock_session(M, resp)
+            assert check_claude_via_socks(12004) == "---"
+
+    def test_minus_on_blocked_url_keyword(self):
+        resp = MagicMock(status_code=200, url="https://claude.com/region-unavailable", text="hello")
+        with patch("vpn_collector.tester.requests.Session") as M:
+            self._mock_session(M, resp)
+            assert check_claude_via_socks(12005) == "---"
+
+    def test_minus_on_exception(self):
+        with patch("vpn_collector.tester.requests.Session") as M:
+            mock_session = MagicMock()
+            mock_session.get.side_effect = Exception("timeout")
+            M.return_value.__enter__ = lambda s: mock_session
+            M.return_value.__exit__ = MagicMock(return_value=False)
+            assert check_claude_via_socks(12006) == "---"
+
+
+class TestTestConfigTunnel:
+    def test_returns_marked_config_on_success(self):
+        mock_proc = MagicMock()
+        mock_proc.poll.return_value = None
+        mock_proc.terminate = MagicMock()
+        mock_proc.wait = MagicMock()
+        mock_tmp = MagicMock()
+        mock_tmp.__enter__ = lambda s: MagicMock(name="/tmp/fake.json")
+        mock_tmp.__exit__ = MagicMock(return_value=False)
+        mock_tmp.return_value.name = "/tmp/fake.json"
+        with patch("vpn_collector.tester.generate_singbox_config", return_value={}), \
+             patch("vpn_collector.tester.subprocess.Popen") as mock_popen, \
+             patch("vpn_collector.tester.speedtest_via_socks", return_value=5.0), \
+             patch("vpn_collector.tester.check_claude_via_socks", return_value="+++"), \
+             patch("vpn_collector.tester.time.sleep"), \
+             patch("vpn_collector.tester.json.dump"), \
+             patch("vpn_collector.tester.tempfile.NamedTemporaryFile") as mock_ntf, \
+             patch("vpn_collector.tester.os.unlink"):
+            mock_popen.return_value = mock_proc
+            mock_cm = MagicMock()
+            mock_cm.__enter__ = MagicMock(return_value=MagicMock(name="/tmp/fake.json"))
+            mock_cm.__exit__ = MagicMock(return_value=False)
+            mock_cm.__enter__.return_value.name = "/tmp/fake.json"
+            mock_ntf.return_value = mock_cm
+            result = test_config_tunnel(VLESS_TEST, "/usr/bin/sing-box", socks_port=13000)
+        assert result is not None
+        assert "#+++TestServer" in result
+
+    def test_returns_none_below_speed_threshold(self):
+        mock_proc = MagicMock()
+        mock_proc.poll.return_value = None
+        with patch("vpn_collector.tester.generate_singbox_config", return_value={}), \
+             patch("vpn_collector.tester.subprocess.Popen") as mock_popen, \
+             patch("vpn_collector.tester.speedtest_via_socks", return_value=0.3), \
+             patch("vpn_collector.tester.time.sleep"), \
+             patch("vpn_collector.tester.json.dump"), \
+             patch("vpn_collector.tester.tempfile.NamedTemporaryFile") as mock_ntf, \
+             patch("vpn_collector.tester.os.unlink"):
+            mock_popen.return_value = mock_proc
+            mock_cm = MagicMock()
+            mock_cm.__enter__ = MagicMock(return_value=MagicMock(name="/tmp/fake.json"))
+            mock_cm.__exit__ = MagicMock(return_value=False)
+            mock_cm.__enter__.return_value.name = "/tmp/fake.json"
+            mock_ntf.return_value = mock_cm
+            result = test_config_tunnel(VLESS_TEST, "/usr/bin/sing-box", socks_port=13001)
+        assert result is None
