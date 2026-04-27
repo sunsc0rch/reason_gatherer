@@ -139,9 +139,6 @@ class TestGenerateSingboxConfig:
         assert out["congestion_control"] == "bbr"
 
 
-import subprocess
-import time
-from unittest.mock import patch, MagicMock
 from vpn_collector.tester import (
     speedtest_via_socks, check_claude_via_socks,
     test_config_tunnel as _test_config_tunnel, tunnel_filter,
@@ -261,3 +258,17 @@ class TestTestConfigTunnel:
             mock_ntf.return_value = mock_cm
             result = test_config_tunnel(VLESS_TEST, "/usr/bin/sing-box", socks_port=13001)
         assert result is None
+
+
+class TestTunnelFilter:
+    @pytest.mark.asyncio
+    async def test_returns_passing_configs(self):
+        with patch("vpn_collector.tester.test_config_tunnel", return_value="vless://uuid@host:443#+++Server"):
+            result = await tunnel_filter(["vless://uuid@host:443#Server"], "/usr/bin/sing-box", concurrency=1)
+        assert result == ["vless://uuid@host:443#+++Server"]
+
+    @pytest.mark.asyncio
+    async def test_filters_out_none_results(self):
+        with patch("vpn_collector.tester.test_config_tunnel", return_value=None):
+            result = await tunnel_filter(["vless://uuid@host:443#Server"], "/usr/bin/sing-box", concurrency=1)
+        assert result == []

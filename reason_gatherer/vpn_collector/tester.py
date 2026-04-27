@@ -345,9 +345,9 @@ async def tunnel_filter(
                 return p
 
     async def test_one(config: str) -> str | None:
-        port = get_port()
         async with semaphore:
-            loop = asyncio.get_event_loop()
+            port = get_port()
+            loop = asyncio.get_running_loop()
             return await loop.run_in_executor(
                 None, test_config_tunnel, config, singbox_path, port
             )
