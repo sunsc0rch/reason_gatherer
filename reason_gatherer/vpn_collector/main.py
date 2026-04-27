@@ -5,7 +5,7 @@ import sys
 from datetime import date
 
 from vpn_collector.config import (
-    RESULTS_DIR, SOURCES_FILE, LOGS_DIR, MAX_RUN_FILES,
+    RESULTS_DIR, SOURCES_FILE, LOGS_DIR, MAX_RUN_FILES, SINGBOX_SEARCH_PATHS,
 )
 from vpn_collector.sources import fetch_all_configs, add_source, sync_stars
 from vpn_collector.tester import tcp_filter, tunnel_filter, find_singbox
@@ -50,14 +50,13 @@ def cmd_test() -> None:
 
     singbox_path = find_singbox()
     if not singbox_path:
-        from vpn_collector.config import SINGBOX_SEARCH_PATHS
         print("sing-box binary not found. Searched:")
         for p in SINGBOX_SEARCH_PATHS:
             print(f"  {p}")
         sys.exit(1)
     print(f"Using sing-box: {singbox_path}")
 
-    candidates = [l for l in candidates_file.read_text().splitlines() if l.strip()]
+    candidates = [line for line in candidates_file.read_text().splitlines() if line.strip()]
     known_hosts = load_known_hosts(RESULTS_DIR)
     new_candidates = [c for c in candidates if not is_duplicate(c, known_hosts)]
     print(f"Candidates: {len(candidates)} | New (not in history): {len(new_candidates)}")
@@ -88,15 +87,21 @@ def cmd_stats() -> None:
 
 
 def main() -> None:
-    _setup_logging()
     parser = argparse.ArgumentParser(description="VPN Config Collector and Tester")
-    parser.add_argument("--collect", action="store_true", help="Fetch configs, TCP filter → candidates.txt")
-    parser.add_argument("--test", action="store_true", help="Tunnel test candidates.txt → known_good.txt")
-    parser.add_argument("--full", action="store_true", help="Run --collect then --test")
-    parser.add_argument("--stats", action="store_true", help="Show counts per result file")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--collect", action="store_true", help="Fetch configs, TCP filter → candidates.txt")
+    mode.add_argument("--test", action="store_true", help="Tunnel test candidates.txt → known_good.txt")
+    mode.add_argument("--full", action="store_true", help="Run --collect then --test")
+    mode.add_argument("--stats", action="store_true", help="Show counts per result file")
     parser.add_argument("--add-source", metavar="SOURCE", help="Add GitHub repo (user/repo) or raw URL")
     parser.add_argument("--sync-stars", metavar="USERNAME", help="Sync GitHub starred repos")
     args = parser.parse_args()
+
+    if not any([args.collect, args.test, args.full, args.stats, args.add_source, args.sync_stars]):
+        parser.print_help()
+        return
+
+    _setup_logging()
 
     if args.collect:
         cmd_collect()
@@ -112,8 +117,6 @@ def main() -> None:
     elif args.sync_stars:
         count = sync_stars(args.sync_stars, SOURCES_FILE)
         print(f"Added {count} new repo(s) from stars.")
-    else:
-        parser.print_help()
 
 
 if __name__ == "__main__":
