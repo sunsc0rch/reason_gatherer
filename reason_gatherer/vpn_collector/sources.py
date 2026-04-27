@@ -71,7 +71,7 @@ def sync_stars(username: str, sources_file: Path) -> int:
 
 def fetch_url_configs(url: str) -> list[str]:
     try:
-        resp = requests.get(url, timeout=15)
+        resp = _clean_session().get(url, timeout=15)
         return parse_configs_from_content(resp.text)
     except Exception as e:
         logger.warning(f"Failed to fetch {url}: {e}")
@@ -80,7 +80,8 @@ def fetch_url_configs(url: str) -> list[str]:
 
 def fetch_repo_configs(repo: str) -> list[str]:
     try:
-        resp = requests.get(
+        session = _clean_session()
+        resp = session.get(
             f"{GITHUB_API}/repos/{repo}/git/trees/HEAD",
             params={"recursive": "1"},
             timeout=15,
@@ -96,7 +97,7 @@ def fetch_repo_configs(repo: str) -> list[str]:
         configs: list[str] = []
         for path in txt_files:
             try:
-                raw = requests.get(f"{GITHUB_RAW}/{repo}/HEAD/{path}", timeout=10)
+                raw = session.get(f"{GITHUB_RAW}/{repo}/HEAD/{path}", timeout=10)
                 if raw.status_code != 200:
                     continue
                 if is_vpn_file(path, raw.text):

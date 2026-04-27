@@ -81,23 +81,28 @@ class TestSyncStars:
 
 
 class TestFetchUrlConfigs:
-    @patch("vpn_collector.sources.requests.get")
-    def test_returns_configs(self, mock_get):
+    @patch("vpn_collector.sources.requests.Session")
+    def test_returns_configs(self, MockSession):
         mock_resp = MagicMock()
         mock_resp.text = f"{VLESS1}\n{VLESS2}\n{VLESS3}\n"
         mock_resp.status_code = 200
-        mock_get.return_value = mock_resp
+        mock_instance = MagicMock()
+        mock_instance.get.return_value = mock_resp
+        mock_instance.trust_env = True
+        MockSession.return_value = mock_instance
         assert len(fetch_url_configs("https://example.com/sub.txt")) == 3
 
-    @patch("vpn_collector.sources.requests.get")
-    def test_returns_empty_on_error(self, mock_get):
-        mock_get.side_effect = Exception("connection error")
+    @patch("vpn_collector.sources.requests.Session")
+    def test_returns_empty_on_error(self, MockSession):
+        mock_instance = MagicMock()
+        mock_instance.get.side_effect = Exception("connection error")
+        MockSession.return_value = mock_instance
         assert fetch_url_configs("https://example.com/sub.txt") == []
 
 
 class TestFetchRepoConfigs:
-    @patch("vpn_collector.sources.requests.get")
-    def test_fetches_txt_files_recursively(self, mock_get, tmp_path):
+    @patch("vpn_collector.sources.requests.Session")
+    def test_fetches_txt_files_recursively(self, MockSession, tmp_path):
         tree_resp = MagicMock()
         tree_resp.status_code = 200
         tree_resp.json.return_value = {
@@ -111,6 +116,8 @@ class TestFetchRepoConfigs:
         file_resp = MagicMock()
         file_resp.status_code = 200
         file_resp.text = f"{VLESS1}\n{VLESS2}\n{VLESS3}\n"
-        mock_get.side_effect = [tree_resp, file_resp, file_resp]
+        mock_instance = MagicMock()
+        mock_instance.get.side_effect = [tree_resp, file_resp, file_resp]
+        MockSession.return_value = mock_instance
         configs = fetch_repo_configs("user/repo")
         assert len(configs) == 3  # deduped across two identical files
