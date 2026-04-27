@@ -127,6 +127,13 @@ class TestGenerateSingboxConfig:
         assert out["server"] == "hy2.host"
         assert out["password"] == "mypassword"
 
+    def test_hysteria_structure(self):
+        hysteria_line = "hysteria://mypassword@hysteria.host:443?sni=hysteria.host#HysteriaServer"
+        out = generate_singbox_config(hysteria_line, socks_port=11006)["outbounds"][0]
+        assert out["type"] == "hysteria2"
+        assert out["server"] == "hysteria.host"
+        assert out["password"] == "mypassword"
+
     def test_tuic_structure(self):
         out = generate_singbox_config(TUIC_LINE, socks_port=11005)["outbounds"][0]
         assert out["type"] == "tuic"
