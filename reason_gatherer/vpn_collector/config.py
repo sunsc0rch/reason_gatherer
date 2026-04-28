@@ -9,11 +9,16 @@ SOURCES_FILE = BASE_DIR / "sources.json"
 TCP_TIMEOUT = 4.0
 TCP_CONCURRENCY = 100
 TCP_BATCH_SIZE = 5000
-TUNNEL_CONCURRENCY = 5
+TUNNEL_CONCURRENCY = 20
 MIN_SPEED_MBPS = 1.0
 MAX_RUN_FILES = 5
 SOCKS_PORT_RANGE = (10000, 19999)
 SINGBOX_STARTUP_TIMEOUT = 3.0
+# Early abort: if speed is below this fraction of MIN_SPEED_MBPS after
+# SPEEDTEST_EARLY_ABORT_AFTER seconds, the server can't mathematically
+# recover to pass the threshold.
+SPEEDTEST_EARLY_ABORT_FACTOR = 0.5
+SPEEDTEST_EARLY_ABORT_AFTER = 4.0
 
 SPEEDTEST_URLS = [
     "http://cachefly.cachefly.net/1mb.test",           # Akamai CDN, globally distributed

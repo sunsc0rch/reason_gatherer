@@ -158,7 +158,7 @@ class TestSpeedtestViaSocks:
         mock_resp.__enter__ = lambda s: s
         mock_resp.__exit__ = MagicMock(return_value=False)
         with patch("vpn_collector.tester.requests.Session") as MockSession, \
-             patch("vpn_collector.tester.time.time", side_effect=[0.0, 1.0]):
+             patch("vpn_collector.tester.time.time", side_effect=[0.0, 0.1, 1.0]):
             mock_session = MagicMock()
             mock_session.get.return_value = mock_resp
             MockSession.return_value.__enter__ = lambda s: mock_session
@@ -232,7 +232,7 @@ class TestTestConfigTunnel:
              patch("vpn_collector.tester.subprocess.Popen") as mock_popen, \
              patch("vpn_collector.tester.speedtest_via_socks", return_value=5.0), \
              patch("vpn_collector.tester.check_claude_via_socks", return_value="+++"), \
-             patch("vpn_collector.tester.time.sleep"), \
+             patch("vpn_collector.tester._wait_for_socks_port", return_value=True), \
              patch("vpn_collector.tester.json.dump"), \
              patch("vpn_collector.tester.tempfile.NamedTemporaryFile") as mock_ntf, \
              patch("vpn_collector.tester.os.unlink"):
@@ -252,7 +252,7 @@ class TestTestConfigTunnel:
         with patch("vpn_collector.tester.generate_singbox_config", return_value={}), \
              patch("vpn_collector.tester.subprocess.Popen") as mock_popen, \
              patch("vpn_collector.tester.speedtest_via_socks", return_value=0.3), \
-             patch("vpn_collector.tester.time.sleep"), \
+             patch("vpn_collector.tester._wait_for_socks_port", return_value=True), \
              patch("vpn_collector.tester.json.dump"), \
              patch("vpn_collector.tester.tempfile.NamedTemporaryFile") as mock_ntf, \
              patch("vpn_collector.tester.os.unlink"):

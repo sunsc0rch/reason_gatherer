@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import random
+import socket
 import subprocess
 import tempfile
 import time
@@ -17,6 +18,7 @@ from vpn_collector.config import (
     MIN_SPEED_MBPS, SPEEDTEST_URLS, CLAUDE_CHECK_URL,
     CLAUDE_OK_MARKER, CLAUDE_BLOCK_URL_KEYWORDS,
     SINGBOX_STARTUP_TIMEOUT, TUNNEL_CONCURRENCY, SOCKS_PORT_RANGE,
+    SPEEDTEST_EARLY_ABORT_FACTOR, SPEEDTEST_EARLY_ABORT_AFTER,
 )
 from vpn_collector.parser import extract_host_port, extract_name, set_name
 
@@ -248,6 +250,17 @@ def generate_singbox_config(config_line: str, socks_port: int) -> dict:
     return _singbox_wrapper(socks_port, outbound)
 
 
+def _wait_for_socks_port(port: int, timeout: float) -> bool:
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            with socket.create_connection(("127.0.0.1", port), timeout=0.1):
+                return True
+        except OSError:
+            time.sleep(0.05)
+    return False
+
+
 def _socks_session(socks_port: int) -> requests.Session:
     session = requests.Session()
     session.trust_env = False
@@ -259,6 +272,7 @@ def _socks_session(socks_port: int) -> requests.Session:
 
 
 def speedtest_via_socks(socks_port: int) -> float:
+    abort_threshold = MIN_SPEED_MBPS * SPEEDTEST_EARLY_ABORT_FACTOR
     with _socks_session(socks_port) as session:
         for url in SPEEDTEST_URLS:
             try:
@@ -267,6 +281,11 @@ def speedtest_via_socks(socks_port: int) -> float:
                 downloaded = 0
                 for chunk in resp.iter_content(chunk_size=65536):
                     downloaded += len(chunk)
+                    elapsed = time.time() - start
+                    if elapsed >= SPEEDTEST_EARLY_ABORT_AFTER:
+                        current_mbps = (downloaded * 8) / (elapsed * 1_000_000)
+                        if current_mbps < abort_threshold:
+                            return current_mbps
                     if downloaded >= 1024 * 1024:
                         break
                 elapsed = time.time() - start
@@ -318,7 +337,8 @@ def test_config_tunnel(
             stderr=subprocess.DEVNULL,
             env=clean_env,
         )
-        time.sleep(SINGBOX_STARTUP_TIMEOUT)
+        if not _wait_for_socks_port(socks_port, SINGBOX_STARTUP_TIMEOUT):
+            return None
         if proc.poll() is not None:
             return None
         if speedtest_via_socks(socks_port) < MIN_SPEED_MBPS:
