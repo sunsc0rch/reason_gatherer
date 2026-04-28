@@ -7,6 +7,8 @@ from vpn_collector.parser import extract_host_port, is_vpn_line
 def load_known_hosts(results_dir: Path) -> set[str]:
     hosts: set[str] = set()
     for f in results_dir.glob("*.txt"):
+        if f.name == "candidates.txt":
+            continue
         for line in f.read_text(errors="replace").splitlines():
             line = line.strip()
             if not line or line.startswith("#"):
