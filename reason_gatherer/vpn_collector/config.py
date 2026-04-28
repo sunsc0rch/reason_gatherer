@@ -6,8 +6,8 @@ RESULTS_DIR = BASE_DIR / "results"
 LOGS_DIR = BASE_DIR / "logs"
 SOURCES_FILE = BASE_DIR / "sources.json"
 
-TCP_TIMEOUT = 3.0
-TCP_CONCURRENCY = 200
+TCP_TIMEOUT = 4.0
+TCP_CONCURRENCY = 100
 TCP_BATCH_SIZE = 5000
 TUNNEL_CONCURRENCY = 5
 MIN_SPEED_MBPS = 1.0
@@ -15,7 +15,8 @@ MAX_RUN_FILES = 5
 SOCKS_PORT_RANGE = (10000, 19999)
 SINGBOX_STARTUP_TIMEOUT = 3.0
 
-SPEEDTEST_URL = "http://speedtest.tele2.net/1MB.bin"
+SPEEDTEST_URL = "http://cachefly.cachefly.net/1mb.test"
+SPEEDTEST_URL_FALLBACK = "http://speedtest.tele2.net/1MB.bin"
 CLAUDE_CHECK_URL = "https://claude.com/"
 
 CLAUDE_BLOCK_KEYWORDS = [
@@ -64,7 +65,7 @@ DEFAULT_SOURCES = [
     {"type": "repo", "value": "LalatinaHub/Mineral"},
     {"type": "repo", "value": "luxxuria/harvester"},
     {"type": "repo", "value": "mahdibland/V2RayAggregator"},
-    {"type": "repo", "value": "barry-far/V2RayAggregator"},
+    {"type": "repo", "value": "barry-far/V2ray-Config"},
     {"type": "repo", "value": "freefq/free"},
     {"type": "repo", "value": "peasoft/NoMoreVPN"},
 ]
