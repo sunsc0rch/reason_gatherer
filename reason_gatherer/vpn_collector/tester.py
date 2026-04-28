@@ -15,7 +15,7 @@ import requests
 from vpn_collector.config import (
     TCP_TIMEOUT, TCP_CONCURRENCY, PROXY_ENV_VARS, SINGBOX_SEARCH_PATHS,
     MIN_SPEED_MBPS, SPEEDTEST_URLS, CLAUDE_CHECK_URL,
-    CLAUDE_BLOCK_KEYWORDS, CLAUDE_BLOCK_URL_KEYWORDS,
+    CLAUDE_OK_MARKER, CLAUDE_BLOCK_URL_KEYWORDS,
     SINGBOX_STARTUP_TIMEOUT, TUNNEL_CONCURRENCY, SOCKS_PORT_RANGE,
 )
 from vpn_collector.parser import extract_host_port, extract_name, set_name
@@ -279,17 +279,20 @@ def speedtest_via_socks(socks_port: int) -> float:
 def check_claude_via_socks(socks_port: int) -> str:
     try:
         with _socks_session(socks_port) as session:
-            resp = session.get(CLAUDE_CHECK_URL, timeout=15, allow_redirects=True)
+            resp = session.get(CLAUDE_CHECK_URL, timeout=20, allow_redirects=True)
             if resp.status_code == 451:
                 return "---"
-            final_url = resp.url.lower()
-            if any(kw in final_url for kw in CLAUDE_BLOCK_URL_KEYWORDS):
+            if any(kw in resp.url.lower() for kw in CLAUDE_BLOCK_URL_KEYWORDS):
                 return "---"
-            body = resp.text.lower()
-            if any(kw in body for kw in CLAUDE_BLOCK_KEYWORDS):
-                return "---"
-            return "+++"
-    except Exception:
+            # Positive check: the Claude app shell contains a specific marker
+            # that only appears when the app actually loaded (not on block/error pages).
+            # Body keyword matching is avoided — error strings exist in the JS bundle
+            # regardless of whether the page is geo-restricted.
+            if CLAUDE_OK_MARKER in resp.text:
+                return "+++"
+            return "---"
+    except Exception as e:
+        logger.debug(f"Claude check failed: {type(e).__name__}: {e}")
         return "---"
 
 

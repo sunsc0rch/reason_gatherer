@@ -181,14 +181,17 @@ class TestCheckClaudeViaSocks:
         mock_get_cls.return_value.__enter__ = lambda s: mock_session
         mock_get_cls.return_value.__exit__ = MagicMock(return_value=False)
 
-    def test_plus_when_accessible(self):
-        resp = MagicMock(status_code=200, url="https://claude.com/", text="<html>Claude</html>")
+    def test_plus_when_app_shell_present(self):
+        resp = MagicMock(status_code=200, url="https://claude.com/",
+                         text='<html data-theme="claude"><body></body></html>')
         with patch("vpn_collector.tester.requests.Session") as M:
             self._mock_session(M, resp)
             assert check_claude_via_socks(12002) == "+++"
 
-    def test_minus_on_keyword_in_body(self):
-        resp = MagicMock(status_code=200, url="https://claude.com/", text="app unavailable in region")
+    def test_minus_when_ok_marker_absent(self):
+        # JS bundle may contain error strings — body keywords are NOT checked
+        resp = MagicMock(status_code=200, url="https://claude.com/",
+                         text="<html><body>not available in your region access restricted</body></html>")
         with patch("vpn_collector.tester.requests.Session") as M:
             self._mock_session(M, resp)
             assert check_claude_via_socks(12003) == "---"
@@ -200,7 +203,8 @@ class TestCheckClaudeViaSocks:
             assert check_claude_via_socks(12004) == "---"
 
     def test_minus_on_blocked_url_keyword(self):
-        resp = MagicMock(status_code=200, url="https://claude.com/region-unavailable", text="hello")
+        resp = MagicMock(status_code=200, url="https://claude.com/blocked",
+                         text='<html data-theme="claude"></html>')
         with patch("vpn_collector.tester.requests.Session") as M:
             self._mock_session(M, resp)
             assert check_claude_via_socks(12005) == "---"
