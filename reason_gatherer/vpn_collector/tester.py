@@ -343,6 +343,7 @@ async def tunnel_filter(
     singbox_path: str,
     concurrency: int = TUNNEL_CONCURRENCY,
     log_every: int = 10,
+    on_pass: callable = None,
 ) -> list[str]:
     total = len(candidates)
     done = 0
@@ -370,6 +371,8 @@ async def tunnel_filter(
         done += 1
         if result:
             passed_count += 1
+            if on_pass:
+                on_pass(result)  # called in event loop — no threading issues
         if done % log_every == 0 or done == total:
             logger.info(f"Tunnel test: {done}/{total} tested | {passed_count} passed")
         return result

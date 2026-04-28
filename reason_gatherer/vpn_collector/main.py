@@ -118,16 +118,19 @@ def cmd_test() -> None:
     candidates = [line for line in candidates_file.read_text().splitlines() if line.strip()]
     known_hosts = load_known_hosts(RESULTS_DIR)
     new_candidates = [c for c in candidates if not is_duplicate(c, known_hosts)]
-    _log.info(f"Candidates: {len(candidates)} | New (not in history): {len(new_candidates)}")
-
-    tested = asyncio.run(tunnel_filter(new_candidates, singbox_path))
-    _log.info(f"Passed all tests: {len(tested)}")
+    _log.info(f"Candidates: {len(candidates)} | Already verified: {len(candidates) - len(new_candidates)} | To test: {len(new_candidates)}")
 
     run_date = date.today().isoformat()
-    for config in tested:
+    passed = [0]
+
+    def save_immediately(config: str) -> None:
         save_config(config, RESULTS_DIR, known_hosts, run_date=run_date)
+        passed[0] += 1
+        _log.info(f"Saved: {config[:80]}...")
+
+    asyncio.run(tunnel_filter(new_candidates, singbox_path, on_pass=save_immediately))
     rotate_run_files(RESULTS_DIR, MAX_RUN_FILES)
-    _log.info(f"Results saved to results/run_{run_date}.txt and results/known_good.txt")
+    _log.info(f"Done: {passed[0]} new configs saved → results/run_{run_date}.txt")
 
 
 def cmd_full(sample: int | None = None) -> None:
