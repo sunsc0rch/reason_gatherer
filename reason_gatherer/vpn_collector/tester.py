@@ -14,7 +14,7 @@ import requests
 
 from vpn_collector.config import (
     TCP_TIMEOUT, TCP_CONCURRENCY, PROXY_ENV_VARS, SINGBOX_SEARCH_PATHS,
-    MIN_SPEED_MBPS, SPEEDTEST_URL, SPEEDTEST_URL_FALLBACK, CLAUDE_CHECK_URL,
+    MIN_SPEED_MBPS, SPEEDTEST_URLS, CLAUDE_CHECK_URL,
     CLAUDE_BLOCK_KEYWORDS, CLAUDE_BLOCK_URL_KEYWORDS,
     SINGBOX_STARTUP_TIMEOUT, TUNNEL_CONCURRENCY, SOCKS_PORT_RANGE,
 )
@@ -258,23 +258,19 @@ def _socks_session(socks_port: int) -> requests.Session:
     return session
 
 
-def _measure_speed(session: requests.Session, url: str) -> float:
-    start = time.time()
-    resp = session.get(url, stream=True, timeout=15)
-    downloaded = 0
-    for chunk in resp.iter_content(chunk_size=65536):
-        downloaded += len(chunk)
-        if downloaded >= 1024 * 1024:
-            break
-    elapsed = time.time() - start
-    return (downloaded * 8) / (elapsed * 1_000_000) if elapsed > 0 else 0.0
-
-
 def speedtest_via_socks(socks_port: int) -> float:
     with _socks_session(socks_port) as session:
-        for url in (SPEEDTEST_URL, SPEEDTEST_URL_FALLBACK):
+        for url in SPEEDTEST_URLS:
             try:
-                return _measure_speed(session, url)
+                start = time.time()
+                resp = session.get(url, stream=True, timeout=15)
+                downloaded = 0
+                for chunk in resp.iter_content(chunk_size=65536):
+                    downloaded += len(chunk)
+                    if downloaded >= 1024 * 1024:
+                        break
+                elapsed = time.time() - start
+                return (downloaded * 8) / (elapsed * 1_000_000) if elapsed > 0 else 0.0
             except Exception:
                 continue
     return 0.0

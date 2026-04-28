@@ -15,8 +15,11 @@ MAX_RUN_FILES = 5
 SOCKS_PORT_RANGE = (10000, 19999)
 SINGBOX_STARTUP_TIMEOUT = 3.0
 
-SPEEDTEST_URL = "http://cachefly.cachefly.net/1mb.test"
-SPEEDTEST_URL_FALLBACK = "http://speedtest.tele2.net/1MB.bin"
+SPEEDTEST_URLS = [
+    "http://cachefly.cachefly.net/1mb.test",           # Akamai CDN, globally distributed
+    "https://speed.cloudflare.com/__down?bytes=1048576", # Cloudflare, best coverage from RU
+    "https://proof.ovh.net/files/1Mb.dat",              # OVH Europe, good RU peering
+]
 CLAUDE_CHECK_URL = "https://claude.com/"
 
 CLAUDE_BLOCK_KEYWORDS = [
