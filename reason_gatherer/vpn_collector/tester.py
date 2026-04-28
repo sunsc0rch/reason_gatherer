@@ -315,6 +315,15 @@ def check_claude_via_socks(socks_port: int) -> str:
         return "---"
 
 
+_fail_counts: dict[str, int] = {
+    "parse_error": 0,
+    "no_port": 0,
+    "proc_dead": 0,
+    "too_slow": 0,
+    "pass": 0,
+}
+
+
 def test_config_tunnel(
     config_line: str, singbox_path: str, socks_port: int
 ) -> str | None:
@@ -323,6 +332,7 @@ def test_config_tunnel(
         cfg = generate_singbox_config(config_line, socks_port)
     except Exception as e:
         logger.debug(f"Config generation failed: {e}")
+        _fail_counts["parse_error"] += 1
         return None
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as tmp:
@@ -338,11 +348,17 @@ def test_config_tunnel(
             env=clean_env,
         )
         if not _wait_for_socks_port(socks_port, SINGBOX_STARTUP_TIMEOUT):
+            _fail_counts["no_port"] += 1
             return None
         if proc.poll() is not None:
+            _fail_counts["proc_dead"] += 1
             return None
-        if speedtest_via_socks(socks_port) < MIN_SPEED_MBPS:
+        speed = speedtest_via_socks(socks_port)
+        if speed < MIN_SPEED_MBPS:
+            _fail_counts["too_slow"] += 1
+            logger.debug(f"Too slow: {speed:.2f} Mbps — {config_line[:60]}")
             return None
+        _fail_counts["pass"] += 1
         marker = check_claude_via_socks(socks_port)
         return set_name(config_line, f"{marker}{extract_name(config_line)}")
     except Exception as e:
@@ -397,7 +413,12 @@ async def tunnel_filter(
             if on_pass:
                 on_pass(result)  # called in event loop — no threading issues
         if done % log_every == 0 or done == total:
-            logger.info(f"Tunnel test: {done}/{total} tested | {passed_count} passed")
+            fc = _fail_counts
+            logger.info(
+                f"Tunnel test: {done}/{total} tested | {passed_count} passed | "
+                f"parse={fc['parse_error']} no_port={fc['no_port']} "
+                f"proc_dead={fc['proc_dead']} too_slow={fc['too_slow']}"
+            )
         return result
 
     results = await asyncio.gather(*[test_one(c) for c in candidates])
