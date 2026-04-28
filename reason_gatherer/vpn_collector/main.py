@@ -11,6 +11,7 @@ from vpn_collector.config import (
     RESULTS_DIR, SOURCES_FILE, LOGS_DIR, MAX_RUN_FILES, SINGBOX_SEARCH_PATHS,
     TCP_BATCH_SIZE,
 )
+from vpn_collector.parser import extract_host_port
 from vpn_collector.sources import fetch_all_configs, add_source, sync_stars
 from vpn_collector.tester import tcp_filter, tunnel_filter, find_singbox
 from vpn_collector.storage import (
@@ -31,6 +32,20 @@ def _setup_logging() -> None:
     )
 
 
+def _load_candidates_hp(candidates_file) -> set[tuple]:
+    """Return host:port pairs already present in candidates.txt."""
+    if not candidates_file.exists():
+        return set()
+    known: set[tuple] = set()
+    for line in candidates_file.read_text().splitlines():
+        line = line.strip()
+        if line:
+            hp = extract_host_port(line)
+            if hp:
+                known.add(hp)
+    return known
+
+
 def cmd_collect(sample: int | None = None) -> None:
     RESULTS_DIR.mkdir(exist_ok=True)
     _log.info("Fetching configs from all sources...")
@@ -42,15 +57,34 @@ def cmd_collect(sample: int | None = None) -> None:
         _log.info(f"Sampled {sample} configs randomly")
 
     candidates_file = RESULTS_DIR / "candidates.txt"
-    candidates_file.write_text("")  # reset from any previous run
 
-    total = len(configs)
-    total_passed = 0
+    # Skip TCP check for host:ports that already passed in a previous run.
+    known_hp = _load_candidates_hp(candidates_file)
+    if known_hp:
+        pre_approved = [c for c in configs if extract_host_port(c) in known_hp]
+        to_check = [c for c in configs if extract_host_port(c) not in known_hp]
+        _log.info(
+            f"Skipping TCP for {len(pre_approved)} pre-approved endpoints | "
+            f"Checking {len(to_check)} new"
+        )
+    else:
+        pre_approved = []
+        to_check = configs
+
+    # Rewrite the file: pre-approved first, then append new results batch by batch.
+    with open(candidates_file, "w") as fh:
+        if pre_approved:
+            fh.write("\n".join(pre_approved) + "\n")
+
+    total_passed = len(pre_approved)
+    total = len(to_check)
     num_batches = max(1, (total + TCP_BATCH_SIZE - 1) // TCP_BATCH_SIZE)
-    _log.info(f"TCP pre-filter: {total} configs → {num_batches} batches of {TCP_BATCH_SIZE}")
+
+    if total > 0:
+        _log.info(f"TCP pre-filter: {total} configs → {num_batches} batches of {TCP_BATCH_SIZE}")
 
     for batch_idx, offset in enumerate(range(0, total, TCP_BATCH_SIZE), 1):
-        batch = configs[offset:offset + TCP_BATCH_SIZE]
+        batch = to_check[offset:offset + TCP_BATCH_SIZE]
         batch_end = min(offset + TCP_BATCH_SIZE, total)
         _log.info(f"[{batch_idx}/{num_batches}] Checking {offset + 1}–{batch_end}...")
         passed = asyncio.run(tcp_filter(batch))
@@ -60,10 +94,10 @@ def cmd_collect(sample: int | None = None) -> None:
                 fh.write("\n".join(passed) + "\n")
         _log.info(
             f"[{batch_idx}/{num_batches}] Batch: {len(passed)} passed | "
-            f"Total so far: {total_passed} / {batch_end}"
+            f"Total so far: {total_passed}"
         )
 
-    _log.info(f"TCP filter done: {total_passed} / {total} passed → {candidates_file}")
+    _log.info(f"TCP filter done: {total_passed} total candidates → {candidates_file}")
 
 
 def cmd_test() -> None:

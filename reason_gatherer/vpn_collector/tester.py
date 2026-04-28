@@ -340,9 +340,15 @@ async def tunnel_filter(
     candidates: list[str],
     singbox_path: str,
     concurrency: int = TUNNEL_CONCURRENCY,
+    log_every: int = 10,
 ) -> list[str]:
+    total = len(candidates)
+    done = 0
+    passed_count = 0
     semaphore = asyncio.Semaphore(concurrency)
     used_ports: set[int] = set()
+
+    logger.info(f"Tunnel test: {total} candidates, concurrency={concurrency}")
 
     def get_port() -> int:
         while True:
@@ -352,12 +358,19 @@ async def tunnel_filter(
                 return p
 
     async def test_one(config: str) -> str | None:
+        nonlocal done, passed_count
         async with semaphore:
             port = get_port()
             loop = asyncio.get_running_loop()
-            return await loop.run_in_executor(
+            result = await loop.run_in_executor(
                 None, test_config_tunnel, config, singbox_path, port
             )
+        done += 1
+        if result:
+            passed_count += 1
+        if done % log_every == 0 or done == total:
+            logger.info(f"Tunnel test: {done}/{total} tested | {passed_count} passed")
+        return result
 
     results = await asyncio.gather(*[test_one(c) for c in candidates])
     return [r for r in results if r is not None]
