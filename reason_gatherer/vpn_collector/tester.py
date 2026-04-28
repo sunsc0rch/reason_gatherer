@@ -40,17 +40,24 @@ async def tcp_filter(
     concurrency: int = TCP_CONCURRENCY,
     timeout: float = TCP_TIMEOUT,
 ) -> list[str]:
+    # Group all configs by host:port — check each endpoint once, keep all passing configs.
+    by_endpoint: dict[tuple, list[str]] = {}
+    for config in configs:
+        hp = extract_host_port(config)
+        if hp:
+            by_endpoint.setdefault(hp, []).append(config)
+
+    unique_endpoints = list(by_endpoint.keys())
     semaphore = asyncio.Semaphore(concurrency)
 
-    async def check_one(config: str) -> str | None:
-        hp = extract_host_port(config)
-        if not hp:
-            return None
+    async def check_endpoint(hp: tuple) -> tuple | None:
         async with semaphore:
-            return config if await tcp_check(hp[0], hp[1], timeout) else None
+            return hp if await tcp_check(hp[0], hp[1], timeout) else None
 
-    results = await asyncio.gather(*[check_one(c) for c in configs])
-    return [r for r in results if r is not None]
+    results = await asyncio.gather(*[check_endpoint(hp) for hp in unique_endpoints])
+    passing = {hp for hp in results if hp is not None}
+
+    return [cfg for hp, cfgs in by_endpoint.items() if hp in passing for cfg in cfgs]
 
 
 def find_singbox() -> str | None:

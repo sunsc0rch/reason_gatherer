@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 import logging
+import random
 import sys
 from datetime import date
 
@@ -30,11 +31,15 @@ def _setup_logging() -> None:
     )
 
 
-def cmd_collect() -> None:
+def cmd_collect(sample: int | None = None) -> None:
     RESULTS_DIR.mkdir(exist_ok=True)
     _log.info("Fetching configs from all sources...")
     configs = fetch_all_configs(SOURCES_FILE)
     _log.info(f"Collected {len(configs)} unique configs")
+
+    if sample and sample < len(configs):
+        configs = random.sample(configs, sample)
+        _log.info(f"Sampled {sample} configs randomly")
 
     candidates_file = RESULTS_DIR / "candidates.txt"
     candidates_file.write_text("")  # reset from any previous run
@@ -91,8 +96,8 @@ def cmd_test() -> None:
     _log.info(f"Results saved to results/run_{run_date}.txt and results/known_good.txt")
 
 
-def cmd_full() -> None:
-    cmd_collect()
+def cmd_full(sample: int | None = None) -> None:
+    cmd_collect(sample=sample)
     cmd_test()
 
 
@@ -115,6 +120,8 @@ def main() -> None:
     mode.add_argument("--stats", action="store_true", help="Show counts per result file")
     parser.add_argument("--add-source", metavar="SOURCE", help="Add GitHub repo (user/repo) or raw URL")
     parser.add_argument("--sync-stars", metavar="USERNAME", help="Sync GitHub starred repos")
+    parser.add_argument("--sample", type=int, metavar="N",
+                        help="Randomly sample N configs before TCP filter (e.g. --sample 30000)")
     args = parser.parse_args()
 
     if not any([args.collect, args.test, args.full, args.stats, args.add_source, args.sync_stars]):
@@ -124,11 +131,11 @@ def main() -> None:
     _setup_logging()
 
     if args.collect:
-        cmd_collect()
+        cmd_collect(sample=args.sample)
     elif args.test:
         cmd_test()
     elif args.full:
-        cmd_full()
+        cmd_full(sample=args.sample)
     elif args.stats:
         cmd_stats()
     elif args.add_source:
