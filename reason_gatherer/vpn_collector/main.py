@@ -4,8 +4,11 @@ import logging
 import sys
 from datetime import date
 
+_log = logging.getLogger(__name__)
+
 from vpn_collector.config import (
     RESULTS_DIR, SOURCES_FILE, LOGS_DIR, MAX_RUN_FILES, SINGBOX_SEARCH_PATHS,
+    TCP_BATCH_SIZE,
 )
 from vpn_collector.sources import fetch_all_configs, add_source, sync_stars
 from vpn_collector.tester import tcp_filter, tunnel_filter, find_singbox
@@ -29,16 +32,33 @@ def _setup_logging() -> None:
 
 def cmd_collect() -> None:
     RESULTS_DIR.mkdir(exist_ok=True)
-    print("Fetching configs from all sources...")
+    _log.info("Fetching configs from all sources...")
     configs = fetch_all_configs(SOURCES_FILE)
-    print(f"Collected {len(configs)} unique configs")
+    _log.info(f"Collected {len(configs)} unique configs")
 
-    print("Running TCP pre-filter...")
-    candidates = asyncio.run(tcp_filter(configs))
-    print(f"TCP passed: {len(candidates)}")
+    candidates_file = RESULTS_DIR / "candidates.txt"
+    candidates_file.write_text("")  # reset from any previous run
 
-    (RESULTS_DIR / "candidates.txt").write_text("\n".join(candidates))
-    print("Saved to results/candidates.txt")
+    total = len(configs)
+    total_passed = 0
+    num_batches = max(1, (total + TCP_BATCH_SIZE - 1) // TCP_BATCH_SIZE)
+    _log.info(f"TCP pre-filter: {total} configs → {num_batches} batches of {TCP_BATCH_SIZE}")
+
+    for batch_idx, offset in enumerate(range(0, total, TCP_BATCH_SIZE), 1):
+        batch = configs[offset:offset + TCP_BATCH_SIZE]
+        batch_end = min(offset + TCP_BATCH_SIZE, total)
+        _log.info(f"[{batch_idx}/{num_batches}] Checking {offset + 1}–{batch_end}...")
+        passed = asyncio.run(tcp_filter(batch))
+        total_passed += len(passed)
+        if passed:
+            with open(candidates_file, "a") as fh:
+                fh.write("\n".join(passed) + "\n")
+        _log.info(
+            f"[{batch_idx}/{num_batches}] Batch: {len(passed)} passed | "
+            f"Total so far: {total_passed} / {batch_end}"
+        )
+
+    _log.info(f"TCP filter done: {total_passed} / {total} passed → {candidates_file}")
 
 
 def cmd_test() -> None:
@@ -54,21 +74,21 @@ def cmd_test() -> None:
         for p in SINGBOX_SEARCH_PATHS:
             print(f"  {p}")
         sys.exit(1)
-    print(f"Using sing-box: {singbox_path}")
+    _log.info(f"Using sing-box: {singbox_path}")
 
     candidates = [line for line in candidates_file.read_text().splitlines() if line.strip()]
     known_hosts = load_known_hosts(RESULTS_DIR)
     new_candidates = [c for c in candidates if not is_duplicate(c, known_hosts)]
-    print(f"Candidates: {len(candidates)} | New (not in history): {len(new_candidates)}")
+    _log.info(f"Candidates: {len(candidates)} | New (not in history): {len(new_candidates)}")
 
     tested = asyncio.run(tunnel_filter(new_candidates, singbox_path))
-    print(f"Passed all tests: {len(tested)}")
+    _log.info(f"Passed all tests: {len(tested)}")
 
     run_date = date.today().isoformat()
     for config in tested:
         save_config(config, RESULTS_DIR, known_hosts, run_date=run_date)
     rotate_run_files(RESULTS_DIR, MAX_RUN_FILES)
-    print(f"Results saved to results/run_{run_date}.txt and results/known_good.txt")
+    _log.info(f"Results saved to results/run_{run_date}.txt and results/known_good.txt")
 
 
 def cmd_full() -> None:
