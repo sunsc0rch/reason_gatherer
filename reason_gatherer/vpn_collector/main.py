@@ -66,7 +66,10 @@ def cmd_collect(sample: int | None = None) -> None:
     # Drop configs whose server is already in known_good — no point retesting.
     before = len(configs)
     configs = [c for c in configs if extract_host_port(c) not in known_good_hp]
-    _log.info(f"Skipped {before - len(configs)} configs already in known_good | {len(configs)} remain")
+    _log.info(
+        f"Skipped {before - len(configs)} source configs pointing to "
+        f"{len(known_good_hp)} already-verified host:ports | {len(configs)} remain"
+    )
 
     # Split: hosts with cached TCP pass (skip check) vs genuinely new hosts.
     pre_approved = [c for c in configs if extract_host_port(c) in tcp_cache_hp]

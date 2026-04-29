@@ -7,6 +7,5 @@ dist/
 build/
 .venv/
 venv/
-results/
 logs/
 sources.json
