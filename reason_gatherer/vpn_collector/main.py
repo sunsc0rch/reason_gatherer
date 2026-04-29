@@ -44,6 +44,23 @@ def cmd_collect(sample: int | None = None) -> None:
 
     candidates_file = RESULTS_DIR / "candidates.txt"
     known_good_hp = load_known_good_hp(RESULTS_DIR)
+
+    # One-time migration: seed tcp_cache.txt from existing candidates.txt so
+    # that host:ports already TCP-verified in previous runs are not re-checked.
+    if not (RESULTS_DIR / "tcp_cache.txt").exists() and candidates_file.exists():
+        seed_hp: list[tuple] = []
+        seen_seed: set[tuple] = set()
+        for line in candidates_file.read_text().splitlines():
+            line = line.strip()
+            if line:
+                hp = extract_host_port(line)
+                if hp and hp not in seen_seed:
+                    seen_seed.add(hp)
+                    seed_hp.append(hp)
+        if seed_hp:
+            update_tcp_cache(RESULTS_DIR, seed_hp)
+            _log.info(f"Seeded tcp_cache.txt with {len(seed_hp)} endpoints from existing candidates.txt")
+
     tcp_cache_hp = load_tcp_cache(RESULTS_DIR)
 
     # Drop configs whose server is already in known_good — no point retesting.
