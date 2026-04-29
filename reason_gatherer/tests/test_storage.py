@@ -1,7 +1,8 @@
 import pytest
 from pathlib import Path
 from vpn_collector.storage import (
-    load_known_hosts, is_duplicate, save_config,
+    load_known_hosts, load_known_good_hp, load_tcp_cache, update_tcp_cache,
+    trim_candidates, is_duplicate, save_config,
     rotate_run_files, get_stats, update_known_good_header,
 )
 
@@ -85,6 +86,66 @@ class TestRotateRunFiles:
         (results_dir / "known_good.txt").write_text("important")
         rotate_run_files(results_dir, max_files=5)
         assert (results_dir / "known_good.txt").exists()
+
+
+class TestLoadKnownGoodHp:
+    def test_empty(self, results_dir):
+        assert load_known_good_hp(results_dir) == set()
+
+    def test_returns_tuples(self, results_dir):
+        (results_dir / "known_good.txt").write_text(f"# header\n{VLESS1}\n{VLESS2}\n")
+        hp = load_known_good_hp(results_dir)
+        assert ("1.2.3.4", 443) in hp
+        assert ("5.6.7.8", 8080) in hp
+
+    def test_skips_comments(self, results_dir):
+        (results_dir / "known_good.txt").write_text("# Updated: 2026-01-01 | Total: 0\n")
+        assert load_known_good_hp(results_dir) == set()
+
+
+class TestTcpCache:
+    def test_empty(self, results_dir):
+        assert load_tcp_cache(results_dir) == set()
+
+    def test_roundtrip(self, results_dir):
+        update_tcp_cache(results_dir, [("1.2.3.4", 443), ("5.6.7.8", 8080)])
+        cache = load_tcp_cache(results_dir)
+        assert ("1.2.3.4", 443) in cache
+        assert ("5.6.7.8", 8080) in cache
+
+    def test_appends_on_second_call(self, results_dir):
+        update_tcp_cache(results_dir, [("1.2.3.4", 443)])
+        update_tcp_cache(results_dir, [("5.6.7.8", 8080)])
+        cache = load_tcp_cache(results_dir)
+        assert len(cache) == 2
+
+    def test_not_loaded_as_known_hosts(self, results_dir):
+        update_tcp_cache(results_dir, [("1.2.3.4", 443)])
+        assert load_known_hosts(results_dir) == set()
+
+
+class TestTrimCandidates:
+    def test_removes_verified_configs(self, results_dir):
+        cfile = results_dir / "candidates.txt"
+        cfile.write_text(f"{VLESS1}\n{VLESS2}\n{VLESS3}\n")
+        known_good_hp = {("1.2.3.4", 443)}
+        removed = trim_candidates(cfile, known_good_hp)
+        assert removed == 1
+        remaining = cfile.read_text().splitlines()
+        assert VLESS1 not in remaining
+        assert VLESS2 in remaining
+        assert VLESS3 in remaining
+
+    def test_no_op_when_nothing_matches(self, results_dir):
+        cfile = results_dir / "candidates.txt"
+        cfile.write_text(f"{VLESS1}\n{VLESS2}\n")
+        removed = trim_candidates(cfile, {("9.9.9.9", 80)})
+        assert removed == 0
+        assert VLESS1 in cfile.read_text()
+
+    def test_handles_missing_file(self, results_dir):
+        removed = trim_candidates(results_dir / "candidates.txt", {("1.2.3.4", 443)})
+        assert removed == 0
 
 
 class TestGetStats:

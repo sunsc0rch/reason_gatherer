@@ -15,8 +15,8 @@ from vpn_collector.parser import extract_host_port
 from vpn_collector.sources import fetch_all_configs, add_source, sync_stars
 from vpn_collector.tester import tcp_filter, tunnel_filter, find_singbox
 from vpn_collector.storage import (
-    load_known_hosts, is_duplicate, save_config,
-    rotate_run_files, get_stats,
+    load_known_hosts, load_known_good_hp, load_tcp_cache, update_tcp_cache,
+    is_duplicate, save_config, rotate_run_files, trim_candidates, get_stats,
 )
 
 
@@ -32,20 +32,6 @@ def _setup_logging() -> None:
     )
 
 
-def _load_candidates_hp(candidates_file) -> set[tuple]:
-    """Return host:port pairs already present in candidates.txt."""
-    if not candidates_file.exists():
-        return set()
-    known: set[tuple] = set()
-    for line in candidates_file.read_text().splitlines():
-        line = line.strip()
-        if line:
-            hp = extract_host_port(line)
-            if hp:
-                known.add(hp)
-    return known
-
-
 def cmd_collect(sample: int | None = None) -> None:
     RESULTS_DIR.mkdir(exist_ok=True)
     _log.info("Fetching configs from all sources...")
@@ -57,21 +43,23 @@ def cmd_collect(sample: int | None = None) -> None:
         _log.info(f"Sampled {sample} configs randomly")
 
     candidates_file = RESULTS_DIR / "candidates.txt"
+    known_good_hp = load_known_good_hp(RESULTS_DIR)
+    tcp_cache_hp = load_tcp_cache(RESULTS_DIR)
 
-    # Skip TCP check for host:ports that already passed in a previous run.
-    known_hp = _load_candidates_hp(candidates_file)
-    if known_hp:
-        pre_approved = [c for c in configs if extract_host_port(c) in known_hp]
-        to_check = [c for c in configs if extract_host_port(c) not in known_hp]
-        _log.info(
-            f"Skipping TCP for {len(pre_approved)} pre-approved endpoints | "
-            f"Checking {len(to_check)} new"
-        )
-    else:
-        pre_approved = []
-        to_check = configs
+    # Drop configs whose server is already in known_good — no point retesting.
+    before = len(configs)
+    configs = [c for c in configs if extract_host_port(c) not in known_good_hp]
+    _log.info(f"Skipped {before - len(configs)} configs already in known_good | {len(configs)} remain")
 
-    # Rewrite the file: pre-approved first, then append new results batch by batch.
+    # Split: hosts with cached TCP pass (skip check) vs genuinely new hosts.
+    pre_approved = [c for c in configs if extract_host_port(c) in tcp_cache_hp]
+    to_check = [c for c in configs if extract_host_port(c) not in tcp_cache_hp]
+    _log.info(
+        f"TCP cache: {len(pre_approved)} pre-approved | "
+        f"{len(to_check)} new endpoints to check"
+    )
+
+    # Rewrite candidates.txt: pre-approved first, then append new TCP results.
     with open(candidates_file, "w") as fh:
         if pre_approved:
             fh.write("\n".join(pre_approved) + "\n")
@@ -92,6 +80,15 @@ def cmd_collect(sample: int | None = None) -> None:
         if passed:
             with open(candidates_file, "a") as fh:
                 fh.write("\n".join(passed) + "\n")
+            # Persist newly TCP-verified host:ports (deduplicated) to the cache.
+            seen: set[tuple] = set()
+            new_hp: list[tuple] = []
+            for cfg in passed:
+                hp = extract_host_port(cfg)
+                if hp and hp not in seen and hp not in tcp_cache_hp:
+                    seen.add(hp)
+                    new_hp.append(hp)
+            update_tcp_cache(RESULTS_DIR, new_hp)
         _log.info(
             f"[{batch_idx}/{num_batches}] Batch: {len(passed)} passed | "
             f"Total so far: {total_passed}"
@@ -131,6 +128,10 @@ def cmd_test() -> None:
     asyncio.run(tunnel_filter(new_candidates, singbox_path, on_pass=save_immediately))
     rotate_run_files(RESULTS_DIR, MAX_RUN_FILES)
     _log.info(f"Done: {passed[0]} new configs saved → results/run_{run_date}.txt")
+
+    if passed[0] > 0:
+        removed = trim_candidates(candidates_file, load_known_good_hp(RESULTS_DIR))
+        _log.info(f"Trimmed candidates.txt: removed {removed} now-verified configs")
 
 
 def cmd_full(sample: int | None = None) -> None:
