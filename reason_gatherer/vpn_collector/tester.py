@@ -407,6 +407,7 @@ async def tunnel_filter(
             result = await loop.run_in_executor(
                 None, test_config_tunnel, config, singbox_path, port
             )
+            used_ports.discard(port)  # sing-box is dead by now; port is free to reuse
         done += 1
         if result:
             passed_count += 1
