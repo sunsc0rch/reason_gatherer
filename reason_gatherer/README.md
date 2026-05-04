@@ -2,6 +2,17 @@
 
 Scrapes free VPN configs from GitHub repositories, filters them by TCP reachability and tunnel quality (speed + Claude.com access), and saves verified configs to rotating result files.
 
+## Verified configs (updated every 2–3 days)
+
+| File | Description |
+|---|---|
+| [**known_good.txt**](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/results/known_good.txt) | All verified configs ever collected — use as subscription URL |
+| [run_2026-04-30.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/results/run_2026-04-30.txt) | Latest run |
+| [run_2026-04-29.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/results/run_2026-04-29.txt) | Previous run |
+| [run_2026-04-28.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/results/run_2026-04-28.txt) | Earlier run |
+
+Configs marked `+++` passed the Claude.com access check (unblocked). Configs marked `---` passed the speed test but Claude.com was blocked through them.
+
 ## How it works
 
 ```
