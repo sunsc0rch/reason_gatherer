@@ -34,6 +34,13 @@ def _setup_logging() -> None:
 
 def cmd_collect(sample: int | None = None) -> None:
     RESULTS_DIR.mkdir(exist_ok=True)
+    _log.info("Syncing starred repos for sunsc0rch...")
+    try:
+        added = sync_stars("sunsc0rch", SOURCES_FILE)
+        if added:
+            _log.info(f"Added {added} new repo(s) from stars")
+    except Exception as e:
+        _log.warning(f"Star sync failed (non-fatal): {e}")
     _log.info("Fetching configs from all sources...")
     configs = fetch_all_configs(SOURCES_FILE)
     _log.info(f"Collected {len(configs)} unique configs")
