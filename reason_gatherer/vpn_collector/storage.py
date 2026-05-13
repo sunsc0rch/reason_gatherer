@@ -22,6 +22,30 @@ def load_known_hosts(results_dir: Path) -> set[str]:
     return hosts
 
 
+def load_known_good_configs(results_dir: Path) -> list[str]:
+    """Return all config lines from known_good.txt (no header lines)."""
+    known_good = results_dir / "known_good.txt"
+    if not known_good.exists():
+        return []
+    result = []
+    for line in known_good.read_text(errors="replace").splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and is_vpn_line(line):
+            result.append(line)
+    return result
+
+
+def rewrite_known_good(results_dir: Path, configs: list[str]) -> None:
+    """Overwrite known_good.txt with the given config list and a fresh header."""
+    known_good = results_dir / "known_good.txt"
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    header = f"# Updated: {timestamp} | Total: {len(configs)}"
+    with open(known_good, "w") as f:
+        f.write(header + "\n")
+        for line in configs:
+            f.write(line + "\n")
+
+
 def load_known_good_hp(results_dir: Path) -> set[tuple]:
     """Return (host, port) pairs from known_good.txt."""
     known_good = results_dir / "known_good.txt"

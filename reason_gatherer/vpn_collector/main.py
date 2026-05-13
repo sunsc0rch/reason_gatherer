@@ -15,7 +15,8 @@ from vpn_collector.parser import extract_host_port
 from vpn_collector.sources import fetch_all_configs, add_source, sync_stars
 from vpn_collector.tester import tcp_filter, tunnel_filter, find_singbox
 from vpn_collector.storage import (
-    load_known_hosts, load_known_good_hp, load_tcp_cache, update_tcp_cache,
+    load_known_hosts, load_known_good_hp, load_known_good_configs,
+    rewrite_known_good, load_tcp_cache, update_tcp_cache,
     is_duplicate, save_config, rotate_run_files, trim_candidates, get_stats,
 )
 
@@ -161,6 +162,57 @@ def cmd_test() -> None:
         _log.info(f"Trimmed candidates.txt: removed {removed} now-verified configs")
 
 
+def cmd_recheck() -> None:
+    """Re-test all configs in known_good.txt; remove dead ones, update markers."""
+    RESULTS_DIR.mkdir(exist_ok=True)
+    known_good_file = RESULTS_DIR / "known_good.txt"
+    if not known_good_file.exists():
+        print("No known_good.txt found. Nothing to recheck.")
+        sys.exit(1)
+
+    singbox_path = find_singbox()
+    if not singbox_path:
+        print("sing-box binary not found. Searched:")
+        for p in SINGBOX_SEARCH_PATHS:
+            print(f"  {p}")
+        sys.exit(1)
+    _log.info(f"Using sing-box: {singbox_path}")
+
+    configs = load_known_good_configs(RESULTS_DIR)
+    _log.info(f"Recheck: {len(configs)} configs loaded from known_good.txt")
+
+    # TCP pre-filter — fast dead-server elimination.
+    _log.info("TCP pre-filter...")
+    tcp_alive = asyncio.run(tcp_filter(configs))
+    tcp_dead = len(configs) - len(tcp_alive)
+    _log.info(f"TCP: {len(tcp_alive)} alive | {tcp_dead} dead (removed)")
+
+    # Full tunnel test with updated markers.
+    _log.info("Tunnel test...")
+    survivors: list[str] = []
+
+    def on_pass(config: str) -> None:
+        survivors.append(config)
+        _log.info(f"Still good: {config[:80]}...")
+
+    asyncio.run(tunnel_filter(tcp_alive, singbox_path, on_pass=on_pass))
+
+    removed = len(configs) - len(survivors)
+    _log.info(f"Recheck done: {len(survivors)} still good | {removed} removed from known_good.txt")
+
+    rewrite_known_good(RESULTS_DIR, survivors)
+
+    # Also remove dead entries from run_*.txt files so stats stay accurate.
+    survivors_hp = {(hp[0], hp[1]) for c in survivors if (hp := extract_host_port(c))}
+    for run_file in RESULTS_DIR.glob("run_*.txt"):
+        lines = [l.strip() for l in run_file.read_text().splitlines() if l.strip()]
+        kept = [l for l in lines if (hp := extract_host_port(l)) and hp in survivors_hp]
+        if len(kept) < len(lines):
+            with open(run_file, "w") as f:
+                f.write("\n".join(kept) + "\n" if kept else "")
+            _log.info(f"Trimmed {run_file.name}: {len(lines) - len(kept)} removed")
+
+
 def cmd_full(sample: int | None = None) -> None:
     cmd_collect(sample=sample)
     cmd_test()
@@ -182,6 +234,7 @@ def main() -> None:
     mode.add_argument("--collect", action="store_true", help="Fetch configs, TCP filter → candidates.txt")
     mode.add_argument("--test", action="store_true", help="Tunnel test candidates.txt → known_good.txt")
     mode.add_argument("--full", action="store_true", help="Run --collect then --test")
+    mode.add_argument("--recheck", action="store_true", help="Re-test known_good.txt, remove dead configs")
     mode.add_argument("--stats", action="store_true", help="Show counts per result file")
     parser.add_argument("--add-source", metavar="SOURCE", help="Add GitHub repo (user/repo) or raw URL")
     parser.add_argument("--sync-stars", metavar="USERNAME", help="Sync GitHub starred repos")
@@ -189,7 +242,7 @@ def main() -> None:
                         help="Randomly sample N configs before TCP filter (e.g. --sample 30000)")
     args = parser.parse_args()
 
-    if not any([args.collect, args.test, args.full, args.stats, args.add_source, args.sync_stars]):
+    if not any([args.collect, args.test, args.full, args.recheck, args.stats, args.add_source, args.sync_stars]):
         parser.print_help()
         return
 
@@ -201,6 +254,8 @@ def main() -> None:
         cmd_test()
     elif args.full:
         cmd_full(sample=args.sample)
+    elif args.recheck:
+        cmd_recheck()
     elif args.stats:
         cmd_stats()
     elif args.add_source:
