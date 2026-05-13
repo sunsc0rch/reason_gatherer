@@ -8,7 +8,9 @@ RESULTS_SUBPATH="reason_gatherer/results"
 
 cd "$REPO_DIR"
 
-git add "${RESULTS_SUBPATH}/known_good.txt" "${RESULTS_SUBPATH}"/run_*.txt 2>/dev/null || true
+git add "${RESULTS_SUBPATH}/known_good.txt" \
+        "${RESULTS_SUBPATH}"/run_*.txt \
+        "${RESULTS_SUBPATH}"/recheck_*.txt 2>/dev/null || true
 
 if git diff --cached --quiet; then
     echo "$(date): no changes in results/, skipping push"
