@@ -163,10 +163,9 @@ def cmd_test() -> None:
 
 
 def cmd_recheck() -> None:
-    """Re-test all configs in known_good.txt; remove dead ones, update markers."""
+    """Re-test all configs in known_good.txt; write survivors to recheck_YYYY-MM-DD.txt."""
     RESULTS_DIR.mkdir(exist_ok=True)
-    known_good_file = RESULTS_DIR / "known_good.txt"
-    if not known_good_file.exists():
+    if not (RESULTS_DIR / "known_good.txt").exists():
         print("No known_good.txt found. Nothing to recheck.")
         sys.exit(1)
 
@@ -184,33 +183,26 @@ def cmd_recheck() -> None:
     # TCP pre-filter — fast dead-server elimination.
     _log.info("TCP pre-filter...")
     tcp_alive = asyncio.run(tcp_filter(configs))
-    tcp_dead = len(configs) - len(tcp_alive)
-    _log.info(f"TCP: {len(tcp_alive)} alive | {tcp_dead} dead (removed)")
+    _log.info(f"TCP: {len(tcp_alive)} alive | {len(configs) - len(tcp_alive)} unreachable")
 
     # Full tunnel test with updated markers.
     _log.info("Tunnel test...")
+    recheck_date = date.today().isoformat()
+    out_file = RESULTS_DIR / f"recheck_{recheck_date}.txt"
     survivors: list[str] = []
 
     def on_pass(config: str) -> None:
         survivors.append(config)
+        with open(out_file, "a") as f:
+            f.write(config + "\n")
         _log.info(f"Still good: {config[:80]}...")
 
     asyncio.run(tunnel_filter(tcp_alive, singbox_path, on_pass=on_pass))
 
-    removed = len(configs) - len(survivors)
-    _log.info(f"Recheck done: {len(survivors)} still good | {removed} removed from known_good.txt")
-
-    rewrite_known_good(RESULTS_DIR, survivors)
-
-    # Also remove dead entries from run_*.txt files so stats stay accurate.
-    survivors_hp = {(hp[0], hp[1]) for c in survivors if (hp := extract_host_port(c))}
-    for run_file in RESULTS_DIR.glob("run_*.txt"):
-        lines = [l.strip() for l in run_file.read_text().splitlines() if l.strip()]
-        kept = [l for l in lines if (hp := extract_host_port(l)) and hp in survivors_hp]
-        if len(kept) < len(lines):
-            with open(run_file, "w") as f:
-                f.write("\n".join(kept) + "\n" if kept else "")
-            _log.info(f"Trimmed {run_file.name}: {len(lines) - len(kept)} removed")
+    _log.info(
+        f"Recheck done: {len(survivors)}/{len(configs)} still working → {out_file.name} "
+        f"({len(configs) - len(survivors)} dead, known_good.txt untouched)"
+    )
 
 
 def cmd_full(sample: int | None = None) -> None:
@@ -234,7 +226,7 @@ def main() -> None:
     mode.add_argument("--collect", action="store_true", help="Fetch configs, TCP filter → candidates.txt")
     mode.add_argument("--test", action="store_true", help="Tunnel test candidates.txt → known_good.txt")
     mode.add_argument("--full", action="store_true", help="Run --collect then --test")
-    mode.add_argument("--recheck", action="store_true", help="Re-test known_good.txt, remove dead configs")
+    mode.add_argument("--recheck", action="store_true", help="Re-test known_good.txt → recheck_YYYY-MM-DD.txt (known_good untouched)")
     mode.add_argument("--stats", action="store_true", help="Show counts per result file")
     parser.add_argument("--add-source", metavar="SOURCE", help="Add GitHub repo (user/repo) or raw URL")
     parser.add_argument("--sync-stars", metavar="USERNAME", help="Sync GitHub starred repos")
