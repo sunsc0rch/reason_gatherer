@@ -64,15 +64,19 @@ class TestAddSource:
 
     def test_add_source_tme_s_url(self, sources_file):
         sources_file.write_text(json.dumps([]))
-        add_source("t.me/s/channelname", sources_file)
+        assert add_source("t.me/s/channelname", sources_file) is True
         sources = load_sources(sources_file)
         assert any(s == {"type": "tg", "value": "channelname"} for s in sources)
 
     def test_add_source_tme_https(self, sources_file):
         sources_file.write_text(json.dumps([]))
-        add_source("https://t.me/channelname", sources_file)
+        assert add_source("https://t.me/channelname", sources_file) is True
         sources = load_sources(sources_file)
         assert any(s == {"type": "tg", "value": "channelname"} for s in sources)
+
+    def test_add_source_tme_no_duplicate(self, sources_file):
+        sources_file.write_text(json.dumps([{"type": "tg", "value": "channelname"}]))
+        assert add_source("t.me/channelname", sources_file) is False
 
 
 class TestSyncStars:
