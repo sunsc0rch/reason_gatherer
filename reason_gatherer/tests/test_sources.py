@@ -56,6 +56,24 @@ class TestAddSource:
         sources_file.write_text(json.dumps([{"type": "repo", "value": "user/repo"}]))
         assert add_source("user/repo", sources_file) is False
 
+    def test_add_source_tme_url(self, sources_file):
+        sources_file.write_text(json.dumps([]))
+        assert add_source("t.me/channelname", sources_file) is True
+        sources = load_sources(sources_file)
+        assert any(s == {"type": "tg", "value": "channelname"} for s in sources)
+
+    def test_add_source_tme_s_url(self, sources_file):
+        sources_file.write_text(json.dumps([]))
+        add_source("t.me/s/channelname", sources_file)
+        sources = load_sources(sources_file)
+        assert any(s == {"type": "tg", "value": "channelname"} for s in sources)
+
+    def test_add_source_tme_https(self, sources_file):
+        sources_file.write_text(json.dumps([]))
+        add_source("https://t.me/channelname", sources_file)
+        sources = load_sources(sources_file)
+        assert any(s == {"type": "tg", "value": "channelname"} for s in sources)
+
 
 class TestSyncStars:
     @patch("vpn_collector.sources._clean_session")

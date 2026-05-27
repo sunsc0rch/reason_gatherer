@@ -32,10 +32,28 @@ def save_sources(sources: list[dict], sources_file: Path) -> None:
 
 def add_source(url_or_repo: str, sources_file: Path) -> bool:
     sources = load_sources(sources_file)
-    if any(s["value"] == url_or_repo for s in sources):
+    stripped = url_or_repo.strip()
+
+    # Normalise Telegram URLs to bare channel name
+    tg_value = None
+    for prefix in ("https://t.me/", "t.me/"):
+        if stripped.startswith(prefix):
+            tg_value = stripped[len(prefix):]
+            break
+    if tg_value is not None:
+        if tg_value.startswith("s/"):
+            tg_value = tg_value[2:]
+        tg_value = tg_value.strip("/")
+        if any(s["type"] == "tg" and s["value"] == tg_value for s in sources):
+            return False
+        sources.append({"type": "tg", "value": tg_value})
+        save_sources(sources, sources_file)
+        return True
+
+    if any(s["value"] == stripped for s in sources):
         return False
-    source_type = "url" if url_or_repo.startswith("http") else "repo"
-    sources.append({"type": source_type, "value": url_or_repo})
+    source_type = "url" if stripped.startswith("http") else "repo"
+    sources.append({"type": source_type, "value": stripped})
     save_sources(sources, sources_file)
     return True
 
@@ -125,10 +143,16 @@ def fetch_repo_configs(repo: str) -> list[str]:
 
 
 def fetch_all_configs(sources_file: Path) -> list[str]:
+    import asyncio
+    from vpn_collector.tg_source import fetch_all_tg_configs
+
     sources = load_sources(sources_file)
     seen: set[str] = set()
     all_configs: list[str] = []
+
     for source in sources:
+        if source["type"] == "tg":
+            continue  # handled separately below
         if source["type"] == "repo":
             configs = fetch_repo_configs(source["value"])
         else:
@@ -137,4 +161,13 @@ def fetch_all_configs(sources_file: Path) -> list[str]:
             if c not in seen:
                 seen.add(c)
                 all_configs.append(c)
+
+    tg_channels = [s["value"] for s in sources if s["type"] == "tg"]
+    if tg_channels:
+        tg_configs = asyncio.run(fetch_all_tg_configs(tg_channels))
+        for c in tg_configs:
+            if c not in seen:
+                seen.add(c)
+                all_configs.append(c)
+
     return all_configs
