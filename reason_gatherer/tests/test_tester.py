@@ -140,6 +140,24 @@ class TestGenerateSingboxConfig:
         assert out["password"] == "mypass"
         assert out["congestion_control"] == "bbr"
 
+    def test_socks_structure(self):
+        # socks://Og@1.2.3.4:443#name  — Og = base64(":") = empty user + empty pass
+        out = generate_singbox_config("socks://Og@1.2.3.4:443#name", socks_port=11010)["outbounds"][0]
+        assert out["type"] == "socks"
+        assert out["server"] == "1.2.3.4"
+        assert out["server_port"] == 443
+        assert out["username"] == ""
+        assert out["password"] == ""
+        assert out["version"] == "5"
+
+    def test_socks_with_credentials(self):
+        # socks://dXNlcjpwYXNz@1.2.3.4:1080#name  — base64("user:pass")
+        creds = base64.b64encode(b"user:pass").decode()
+        out = generate_singbox_config(f"socks://{creds}@1.2.3.4:1080#name", socks_port=11011)["outbounds"][0]
+        assert out["type"] == "socks"
+        assert out["username"] == "user"
+        assert out["password"] == "pass"
+
 
 from vpn_collector.tester import (
     speedtest_via_socks, check_claude_via_socks,

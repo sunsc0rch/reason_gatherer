@@ -229,6 +229,31 @@ def _parse_tuic(line: str) -> dict:
     }
 
 
+def _parse_socks(line: str) -> dict:
+    p = urlparse(line)
+    username = ""
+    password = ""
+    if p.username:
+        try:
+            decoded = base64.b64decode(p.username + "==").decode("utf-8", errors="replace")
+            if ":" in decoded:
+                username, password = decoded.split(":", 1)
+            else:
+                username = decoded
+        except Exception:
+            username = unquote(p.username)
+            password = unquote(p.password or "")
+    return {
+        "type": "socks",
+        "tag": "proxy",
+        "server": p.hostname,
+        "server_port": p.port,
+        "username": username,
+        "password": password,
+        "version": "5",
+    }
+
+
 def generate_singbox_config(config_line: str, socks_port: int) -> dict:
     line = config_line.strip().split("#")[0]
     if line.startswith("vless://"):
@@ -245,6 +270,8 @@ def generate_singbox_config(config_line: str, socks_port: int) -> dict:
         outbound = _parse_hy2(line)
     elif line.startswith("tuic://"):
         outbound = _parse_tuic(line)
+    elif line.startswith("socks://"):
+        outbound = _parse_socks(line)
     else:
         raise ValueError(f"Unsupported protocol: {line[:20]}")
     return _singbox_wrapper(socks_port, outbound)

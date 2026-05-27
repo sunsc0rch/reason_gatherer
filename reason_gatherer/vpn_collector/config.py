@@ -47,6 +47,7 @@ SINGBOX_SEARCH_PATHS = [
 VPN_PREFIXES = (
     "vless://", "vmess://", "trojan://", "ss://",
     "hysteria://", "hysteria2://", "hy2://", "tuic://",
+    "socks://",
 )
 
 SKIP_FILENAMES = {
@@ -75,3 +76,7 @@ DEFAULT_SOURCES = [
     {"type": "repo", "value": "freefq/free"},
     {"type": "repo", "value": "peasoft/NoMoreVPN"},
 ]
+
+TG_AUTH_FILE    = Path.home() / ".config" / "vpn_collector" / "tg_auth.json"
+TG_SESSION_FILE = Path.home() / ".config" / "vpn_collector" / "tg"
+TG_POSTS_LIMIT  = 50
