@@ -233,6 +233,8 @@ def _parse_socks(line: str) -> dict:
     p = urlparse(line)
     username = ""
     password = ""
+    # userinfo is base64(user:pass) per the socks:// share-link convention;
+    # plain user:pass URLs would be silently mis-decoded here.
     if p.username:
         try:
             decoded = base64.b64decode(p.username + "==").decode("utf-8", errors="replace")
