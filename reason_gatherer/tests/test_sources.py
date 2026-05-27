@@ -4,7 +4,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 from vpn_collector.sources import (
     load_sources, save_sources, add_source,
-    sync_stars, fetch_url_configs, fetch_repo_configs,
+    sync_stars, fetch_url_configs, fetch_repo_configs, _is_fetchable,
 )
 
 VLESS1 = "vless://uuid1@1.2.3.4:443?type=tcp#Server1"
@@ -104,16 +104,44 @@ class TestFetchUrlConfigs:
         assert fetch_url_configs("https://example.com/sub.txt") == []
 
 
+class TestIsFetchable:
+    def test_txt_file_allowed(self):
+        assert _is_fetchable("configs/nodes.txt") is True
+
+    def test_no_extension_allowed(self):
+        assert _is_fetchable("configs/sub") is True
+        assert _is_fetchable("vmess") is True
+
+    def test_skip_extensions_blocked(self):
+        assert _is_fetchable("config.yml") is False
+        assert _is_fetchable("config.yaml") is False
+        assert _is_fetchable("config.json") is False
+        assert _is_fetchable("README.md") is False
+        assert _is_fetchable("install.sh") is False
+        assert _is_fetchable("setup.py") is False
+
+    def test_skip_filenames_blocked(self):
+        assert _is_fetchable("readme.txt") is False
+        assert _is_fetchable("LICENSE") is False
+        assert _is_fetchable("changelog.md") is False
+
+    def test_other_extensions_allowed(self):
+        assert _is_fetchable("nodes.conf") is True
+        assert _is_fetchable("subs.list") is True
+        assert _is_fetchable("configs.csv") is True
+
+
 class TestFetchRepoConfigs:
     @patch("vpn_collector.sources.requests.Session")
-    def test_fetches_txt_files_recursively(self, MockSession, tmp_path):
+    def test_fetches_txt_and_extensionless_files(self, MockSession, tmp_path):
         tree_resp = MagicMock()
         tree_resp.status_code = 200
         tree_resp.json.return_value = {
             "tree": [
                 {"type": "blob", "path": "sub.txt"},
-                {"type": "blob", "path": "subdir/nodes.txt"},
-                {"type": "blob", "path": "README.md"},
+                {"type": "blob", "path": "subdir/nodes"},   # no extension
+                {"type": "blob", "path": "README.md"},      # skipped
+                {"type": "blob", "path": "config.yml"},     # skipped
                 {"type": "tree", "path": "subdir"},
             ]
         }
@@ -121,6 +149,7 @@ class TestFetchRepoConfigs:
         file_resp.status_code = 200
         file_resp.text = f"{VLESS1}\n{VLESS2}\n{VLESS3}\n"
         mock_instance = MagicMock()
+        # tree + 2 blob fetches (sub.txt and nodes), README.md and config.yml skipped
         mock_instance.get.side_effect = [tree_resp, file_resp, file_resp]
         MockSession.return_value = mock_instance
         configs = fetch_repo_configs("user/repo")

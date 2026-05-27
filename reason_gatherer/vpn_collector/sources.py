@@ -69,6 +69,17 @@ def sync_stars(username: str, sources_file: Path) -> int:
     return added
 
 
+def _is_fetchable(path: str) -> bool:
+    """Return True if a repo file path is worth fetching and content-checking."""
+    from pathlib import Path as _Path
+    from vpn_collector.config import SKIP_EXTENSIONS, SKIP_FILENAMES
+    p = _Path(path)
+    if p.suffix.lower() in SKIP_EXTENSIONS:
+        return False
+    name_lower = p.name.lower()
+    return not any(name_lower.startswith(s) for s in SKIP_FILENAMES)
+
+
 def fetch_url_configs(url: str) -> list[str]:
     try:
         resp = _clean_session().get(url, timeout=15)
@@ -91,7 +102,7 @@ def fetch_repo_configs(repo: str) -> list[str]:
             return []
         txt_files = [
             item["path"] for item in resp.json().get("tree", [])
-            if item["type"] == "blob" and item["path"].endswith(".txt")
+            if item["type"] == "blob" and _is_fetchable(item["path"])
         ]
         seen: set[str] = set()
         configs: list[str] = []
