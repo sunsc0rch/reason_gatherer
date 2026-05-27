@@ -2,7 +2,8 @@ import json
 import logging
 from pathlib import Path
 
-from vpn_collector.config import TG_AUTH_FILE, TG_SESSION_FILE
+from vpn_collector.config import TG_AUTH_FILE, TG_SESSION_FILE, TG_POSTS_LIMIT
+from vpn_collector.parser import parse_configs_from_content
 
 logger = logging.getLogger(__name__)
 
@@ -21,3 +22,49 @@ def save_tg_auth(api_id: int, api_hash: str) -> None:
 def is_tg_configured() -> bool:
     session_path = Path(str(TG_SESSION_FILE) + ".session")
     return TG_AUTH_FILE.exists() and session_path.exists()
+
+
+async def fetch_tg_channel_configs(client, channel: str, limit: int) -> list[str]:
+    try:
+        messages = await client.get_messages(channel, limit=limit)
+        configs: list[str] = []
+        for msg in messages:
+            if msg.text:
+                configs.extend(parse_configs_from_content(msg.text))
+        return configs
+    except Exception as e:
+        logger.debug(f"TG channel {channel}: {e}")
+        return []
+
+
+async def fetch_all_tg_configs(channels: list[str], limit: int = TG_POSTS_LIMIT) -> list[str]:
+    try:
+        from telethon import TelegramClient
+    except ImportError:
+        logger.error(
+            "Telethon not installed. Run: pip install telethon>=1.36"
+        )
+        return []
+
+    auth = load_tg_auth()
+    if auth is None:
+        logger.warning("Telegram auth not configured. Run --setup-tg first.")
+        return []
+
+    session_path = Path(str(TG_SESSION_FILE) + ".session")
+    if not session_path.exists():
+        logger.warning("Telegram session not found. Run --setup-tg first.")
+        return []
+
+    seen: set[str] = set()
+    all_configs: list[str] = []
+
+    async with TelegramClient(str(TG_SESSION_FILE), auth["api_id"], auth["api_hash"]) as client:
+        for channel in channels:
+            configs = await fetch_tg_channel_configs(client, channel, limit)
+            for c in configs:
+                if c not in seen:
+                    seen.add(c)
+                    all_configs.append(c)
+
+    return all_configs
