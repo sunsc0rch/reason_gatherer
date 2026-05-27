@@ -28,6 +28,7 @@ class TestSaveTgAuth:
         data = json.loads(auth_file.read_text())
         assert data["api_id"] == 99999
         assert data["api_hash"] == "myhash"
+        assert oct(auth_file.stat().st_mode)[-3:] == "600"
 
 
 class TestIsTgConfigured:

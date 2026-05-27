@@ -17,6 +17,7 @@ def load_tg_auth() -> dict | None:
 def save_tg_auth(api_id: int, api_hash: str) -> None:
     TG_AUTH_FILE.parent.mkdir(parents=True, exist_ok=True)
     TG_AUTH_FILE.write_text(json.dumps({"api_id": api_id, "api_hash": api_hash}))
+    TG_AUTH_FILE.chmod(0o600)
 
 
 def is_tg_configured() -> bool:
@@ -33,7 +34,7 @@ async def fetch_tg_channel_configs(client, channel: str, limit: int) -> list[str
                 configs.extend(parse_configs_from_content(msg.text))
         return configs
     except Exception as e:
-        logger.debug(f"TG channel {channel}: {e}")
+        logger.warning(f"TG channel {channel}: {e}")
         return []
 
 
@@ -46,14 +47,13 @@ async def fetch_all_tg_configs(channels: list[str], limit: int = TG_POSTS_LIMIT)
         )
         return []
 
-    auth = load_tg_auth()
-    if not auth or "api_id" not in auth or "api_hash" not in auth:
-        logger.warning("Telegram auth not configured. Run --setup-tg first.")
+    if not is_tg_configured():
+        logger.warning("Telegram not configured. Run --setup-tg first.")
         return []
 
-    session_path = Path(str(TG_SESSION_FILE) + ".session")
-    if not session_path.exists():
-        logger.warning("Telegram session not found. Run --setup-tg first.")
+    auth = load_tg_auth()
+    if not auth or "api_id" not in auth or "api_hash" not in auth:
+        logger.warning("Telegram auth file is malformed. Run --setup-tg first.")
         return []
 
     if not channels:

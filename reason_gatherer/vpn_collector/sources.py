@@ -36,7 +36,7 @@ def add_source(url_or_repo: str, sources_file: Path) -> bool:
 
     # Normalise Telegram URLs to bare channel name
     tg_value = None
-    for prefix in ("https://t.me/", "t.me/"):
+    for prefix in ("https://t.me/", "http://t.me/", "t.me/"):
         if stripped.startswith(prefix):
             tg_value = stripped[len(prefix):]
             break

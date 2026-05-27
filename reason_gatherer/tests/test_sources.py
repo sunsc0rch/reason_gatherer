@@ -74,6 +74,12 @@ class TestAddSource:
         sources = load_sources(sources_file)
         assert any(s == {"type": "tg", "value": "channelname"} for s in sources)
 
+    def test_add_source_tme_http(self, sources_file):
+        sources_file.write_text(json.dumps([]))
+        assert add_source("http://t.me/channelname", sources_file) is True
+        sources = load_sources(sources_file)
+        assert any(s == {"type": "tg", "value": "channelname"} for s in sources)
+
     def test_add_source_tme_no_duplicate(self, sources_file):
         sources_file.write_text(json.dumps([{"type": "tg", "value": "channelname"}]))
         assert add_source("t.me/channelname", sources_file) is False
