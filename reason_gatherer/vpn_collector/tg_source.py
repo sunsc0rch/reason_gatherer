@@ -2,8 +2,7 @@ import json
 import logging
 from pathlib import Path
 
-from vpn_collector.config import TG_AUTH_FILE, TG_SESSION_FILE, TG_POSTS_LIMIT
-from vpn_collector.parser import parse_configs_from_content
+from vpn_collector.config import TG_AUTH_FILE, TG_SESSION_FILE
 
 logger = logging.getLogger(__name__)
 
