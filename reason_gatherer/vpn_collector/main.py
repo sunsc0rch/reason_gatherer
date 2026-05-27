@@ -233,7 +233,9 @@ def cmd_setup_tg() -> None:
     import asyncio
 
     async def _setup():
-        client = TelegramClient(str(TG_SESSION_FILE), api_id, api_hash)
+        from vpn_collector.tg_source import _telethon_proxy
+        proxy = _telethon_proxy()
+        client = TelegramClient(str(TG_SESSION_FILE), api_id, api_hash, proxy=proxy)
         await client.start(
             phone=lambda: input("Phone number (e.g. +79991234567): ").strip(),
             code_callback=lambda: input("Enter the code you received: ").strip(),
