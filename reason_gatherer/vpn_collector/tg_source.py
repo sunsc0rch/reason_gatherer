@@ -47,13 +47,16 @@ async def fetch_all_tg_configs(channels: list[str], limit: int = TG_POSTS_LIMIT)
         return []
 
     auth = load_tg_auth()
-    if auth is None:
+    if not auth or "api_id" not in auth or "api_hash" not in auth:
         logger.warning("Telegram auth not configured. Run --setup-tg first.")
         return []
 
     session_path = Path(str(TG_SESSION_FILE) + ".session")
     if not session_path.exists():
         logger.warning("Telegram session not found. Run --setup-tg first.")
+        return []
+
+    if not channels:
         return []
 
     seen: set[str] = set()
