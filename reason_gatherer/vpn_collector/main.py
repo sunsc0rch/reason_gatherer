@@ -208,7 +208,6 @@ def cmd_recheck() -> None:
 def cmd_setup_tg() -> None:
     try:
         from telethon import TelegramClient
-        from telethon.errors import SessionPasswordNeededError
     except ImportError:
         print("Telethon not installed. Run: pip install telethon>=1.36")
         sys.exit(1)
