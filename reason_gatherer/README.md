@@ -19,7 +19,7 @@ Configs marked `+++` passed the Claude.com access check (unblocked from Russia).
 ## How it works
 
 ```
-GitHub repos / raw URLs
+GitHub repos / raw URLs / Telegram channels
         ↓
   sync_stars + fetch_all_configs   — auto-syncs starred repos, deduplicates
         ↓
@@ -62,7 +62,11 @@ python -m vpn_collector.main --recheck        # → recheck_YYYY-MM-DD.txt (know
 # Manage sources
 python -m vpn_collector.main --add-source user/repo          # add GitHub repo
 python -m vpn_collector.main --add-source https://example.com/sub.txt  # add raw URL
+python -m vpn_collector.main --add-source t.me/channelname   # add Telegram channel
 python -m vpn_collector.main --sync-stars <github_username>  # manually sync starred repos
+
+# Telegram setup (one-time, requires api_id + api_hash from my.telegram.org)
+python -m vpn_collector.main --setup-tg
 
 # Stats
 python -m vpn_collector.main --stats
@@ -80,6 +84,31 @@ results/
 ```
 
 `known_good.txt` is never overwritten. Paste the raw URL into Throne / Hiddify as a subscription source.
+
+## Telegram sources
+
+Telegram channels are an optional additional source of configs.
+
+**One-time setup:**
+
+```bash
+pip install telethon>=1.36
+python -m vpn_collector.main --setup-tg   # logs in via phone + SMS code
+```
+
+Credentials are stored in `~/.config/vpn_collector/tg_auth.json` (mode 600) and the session in `~/.config/vpn_collector/tg.session` — never inside the repo.
+
+**Add channels:**
+
+```bash
+python -m vpn_collector.main --add-source t.me/channelname
+```
+
+Accepted formats: `t.me/name`, `t.me/s/name`, `https://t.me/name`. The last 50 posts per channel are scanned for VPN configs on every `--collect` run.
+
+If Telethon is not installed or setup was not run, `--collect` continues normally without TG — no crash.
+
+> **Behind a proxy:** Telethon reads `ALL_PROXY` / `HTTPS_PROXY` env vars automatically (`socks5://`, `socks4://`, `http://`). If your Throne/sing-box proxy is not in the environment, prefix the command: `ALL_PROXY=socks5://127.0.0.1:<port> python -m vpn_collector.main --setup-tg`
 
 ## Configuration
 
