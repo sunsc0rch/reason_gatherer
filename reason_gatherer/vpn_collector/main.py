@@ -205,6 +205,47 @@ def cmd_recheck() -> None:
     )
 
 
+def cmd_setup_tg() -> None:
+    try:
+        from telethon import TelegramClient
+        from telethon.errors import SessionPasswordNeededError
+    except ImportError:
+        print("Telethon not installed. Run: pip install telethon>=1.36")
+        sys.exit(1)
+
+    from vpn_collector.tg_source import load_tg_auth, save_tg_auth
+    from vpn_collector.config import TG_SESSION_FILE
+
+    auth = load_tg_auth()
+    if auth is None:
+        try:
+            api_id = int(input("Enter your Telegram api_id: ").strip())
+        except ValueError:
+            print("api_id must be a number.")
+            sys.exit(1)
+        api_hash = input("Enter your Telegram api_hash: ").strip()
+        save_tg_auth(api_id, api_hash)
+        print("Auth saved to ~/.config/vpn_collector/tg_auth.json")
+    else:
+        api_id = auth["api_id"]
+        api_hash = auth["api_hash"]
+        print(f"Using existing auth (api_id={api_id})")
+
+    import asyncio
+
+    async def _setup():
+        client = TelegramClient(str(TG_SESSION_FILE), api_id, api_hash)
+        await client.start(
+            phone=lambda: input("Phone number (e.g. +79991234567): ").strip(),
+            code_callback=lambda: input("Enter the code you received: ").strip(),
+            password=lambda: input("2FA password: ").strip(),
+        )
+        await client.disconnect()
+        print("Setup complete. Add channels with: --add-source t.me/channelname")
+
+    asyncio.run(_setup())
+
+
 def cmd_full(sample: int | None = None) -> None:
     cmd_collect(sample=sample)
     cmd_test()
@@ -228,13 +269,14 @@ def main() -> None:
     mode.add_argument("--full", action="store_true", help="Run --collect then --test")
     mode.add_argument("--recheck", action="store_true", help="Re-test known_good.txt → recheck_YYYY-MM-DD.txt (known_good untouched)")
     mode.add_argument("--stats", action="store_true", help="Show counts per result file")
+    mode.add_argument("--setup-tg", action="store_true", help="Authenticate Telegram (interactive)")
     parser.add_argument("--add-source", metavar="SOURCE", help="Add GitHub repo (user/repo) or raw URL")
     parser.add_argument("--sync-stars", metavar="USERNAME", help="Sync GitHub starred repos")
     parser.add_argument("--sample", type=int, metavar="N",
                         help="Randomly sample N configs before TCP filter (e.g. --sample 30000)")
     args = parser.parse_args()
 
-    if not any([args.collect, args.test, args.full, args.recheck, args.stats, args.add_source, args.sync_stars]):
+    if not any([args.collect, args.test, args.full, args.recheck, args.stats, args.add_source, args.sync_stars, args.setup_tg]):
         parser.print_help()
         return
 
@@ -250,6 +292,8 @@ def main() -> None:
         cmd_recheck()
     elif args.stats:
         cmd_stats()
+    elif args.setup_tg:
+        cmd_setup_tg()
     elif args.add_source:
         added = add_source(args.add_source, SOURCES_FILE)
         print("Added." if added else "Already exists.")
