@@ -185,17 +185,22 @@ def cmd_recheck() -> None:
     tcp_alive = asyncio.run(tcp_filter(configs))
     _log.info(f"TCP: {len(tcp_alive)} alive | {len(configs) - len(tcp_alive)} unreachable")
 
-    # Full tunnel test with updated markers.
+    # Full tunnel test — preserve original config strings (no marker mutation).
     _log.info("Tunnel test...")
     recheck_date = date.today().isoformat()
     out_file = RESULTS_DIR / f"recheck_{recheck_date}.txt"
     survivors: list[str] = []
 
+    # test_config_tunnel prepends a +++ / --- marker to the name; for recheck
+    # we want the original config unchanged, so strip that prefix back out.
+    original_by_base = {c.split("#")[0]: c for c in tcp_alive}
+
     def on_pass(config: str) -> None:
-        survivors.append(config)
+        original = original_by_base.get(config.split("#")[0], config)
+        survivors.append(original)
         with open(out_file, "a") as f:
-            f.write(config + "\n")
-        _log.info(f"Still good: {config[:80]}...")
+            f.write(original + "\n")
+        _log.info(f"Still good: {original[:80]}...")
 
     asyncio.run(tunnel_filter(tcp_alive, singbox_path, on_pass=on_pass))
 
