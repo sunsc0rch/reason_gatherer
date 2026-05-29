@@ -7,11 +7,11 @@ Scrapes free VPN configs from GitHub repositories, filters them by TCP reachabil
 | File | Description |
 |---|---|
 | [**known_good.txt**](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/known_good.txt) | All verified configs ever collected — use as subscription URL |
-| [run_2026-05-26.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-05-26.txt) | Latest run |
-| [run_2026-05-22.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-05-22.txt) | Previous run |
+| [run_2026-05-27.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-05-27.txt) | Latest run |
+| [run_2026-05-26.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-05-26.txt) | Previous run |
+| [run_2026-05-22.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-05-22.txt) | Earlier run |
 | [run_2026-05-18.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-05-18.txt) | Earlier run |
 | [run_2026-05-15.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-05-15.txt) | Earlier run |
-| [run_2026-05-13.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-05-13.txt) | Earlier run |
 | [recheck_2026-05-25.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/recheck_2026-05-25.txt) | Latest recheck (configs re-verified from known_good) |
 
 Configs marked `+++` passed the Claude.com access check (unblocked from Russia). Configs marked `---` passed the speed test but Claude.com was blocked through them.
