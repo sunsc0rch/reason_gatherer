@@ -199,17 +199,14 @@ class TestCheckClaudeViaSocks:
         mock_get_cls.return_value.__enter__ = lambda s: mock_session
         mock_get_cls.return_value.__exit__ = MagicMock(return_value=False)
 
-    def test_plus_when_app_shell_present(self):
-        resp = MagicMock(status_code=200, url="https://claude.com/",
-                         text='<html data-theme="claude"><body></body></html>')
+    def test_plus_on_200_clean_url(self):
+        resp = MagicMock(status_code=200, url="https://claude.com/", text="<html></html>")
         with patch("vpn_collector.tester.requests.Session") as M:
             self._mock_session(M, resp)
             assert check_claude_via_socks(12002) == "+++"
 
-    def test_minus_when_ok_marker_absent(self):
-        # JS bundle may contain error strings — body keywords are NOT checked
-        resp = MagicMock(status_code=200, url="https://claude.com/",
-                         text="<html><body>not available in your region access restricted</body></html>")
+    def test_minus_on_4xx_status(self):
+        resp = MagicMock(status_code=403, url="https://claude.com/", text="")
         with patch("vpn_collector.tester.requests.Session") as M:
             self._mock_session(M, resp)
             assert check_claude_via_socks(12003) == "---"

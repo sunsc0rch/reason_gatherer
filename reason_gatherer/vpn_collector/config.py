@@ -26,10 +26,6 @@ SPEEDTEST_URLS = [
     "https://proof.ovh.net/files/1Mb.dat",              # OVH Europe, good RU peering
 ]
 CLAUDE_CHECK_URL = "https://claude.com/"
-# Positive marker present in Claude's HTML shell only when the app actually loads.
-# Body keyword matching is unreliable — error strings live in the minified JS bundle
-# regardless of whether the page is geo-blocked or not.
-CLAUDE_OK_MARKER = 'data-theme="claude"'
 # Only check the final redirect URL for hard ISP-level block pages.
 CLAUDE_BLOCK_URL_KEYWORDS = ["/blocked", "/unavailable", "/restricted"]
 

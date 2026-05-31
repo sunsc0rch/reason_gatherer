@@ -16,7 +16,7 @@ import requests
 from vpn_collector.config import (
     TCP_TIMEOUT, TCP_CONCURRENCY, PROXY_ENV_VARS, SINGBOX_SEARCH_PATHS,
     MIN_SPEED_MBPS, SPEEDTEST_URLS, CLAUDE_CHECK_URL,
-    CLAUDE_OK_MARKER, CLAUDE_BLOCK_URL_KEYWORDS,
+    CLAUDE_BLOCK_URL_KEYWORDS,
     SINGBOX_STARTUP_TIMEOUT, TUNNEL_CONCURRENCY, SOCKS_PORT_RANGE,
     SPEEDTEST_EARLY_ABORT_FACTOR, SPEEDTEST_EARLY_ABORT_AFTER,
 )
@@ -332,13 +332,9 @@ def check_claude_via_socks(socks_port: int) -> str:
                 return "---"
             if any(kw in resp.url.lower() for kw in CLAUDE_BLOCK_URL_KEYWORDS):
                 return "---"
-            # Positive check: the Claude app shell contains a specific marker
-            # that only appears when the app actually loaded (not on block/error pages).
-            # Body keyword matching is avoided — error strings exist in the JS bundle
-            # regardless of whether the page is geo-restricted.
-            if CLAUDE_OK_MARKER in resp.text:
-                return "+++"
-            return "---"
+            if resp.status_code >= 400:
+                return "---"
+            return "+++"
     except Exception as e:
         logger.debug(f"Claude check failed: {type(e).__name__}: {e}")
         return "---"
