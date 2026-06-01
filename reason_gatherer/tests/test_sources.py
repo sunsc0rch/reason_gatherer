@@ -141,8 +141,9 @@ class TestIsFetchable:
         assert _is_fetchable("vmess") is True
 
     def test_skip_extensions_blocked(self):
-        assert _is_fetchable("config.yml") is False
-        assert _is_fetchable("config.yaml") is False
+        # yaml/yml now allowed (Clash configs live in yaml files)
+        assert _is_fetchable("config.yml") is True
+        assert _is_fetchable("config.yaml") is True
         assert _is_fetchable("config.json") is False
         assert _is_fetchable("README.md") is False
         assert _is_fetchable("install.sh") is False
@@ -168,8 +169,8 @@ class TestFetchRepoConfigs:
             "tree": [
                 {"type": "blob", "path": "sub.txt"},
                 {"type": "blob", "path": "subdir/nodes"},   # no extension
-                {"type": "blob", "path": "README.md"},      # skipped
-                {"type": "blob", "path": "config.yml"},     # skipped
+                {"type": "blob", "path": "README.md"},      # skipped (.md)
+                {"type": "blob", "path": "config.yml"},     # fetched (yaml allowed now)
                 {"type": "tree", "path": "subdir"},
             ]
         }
@@ -177,8 +178,8 @@ class TestFetchRepoConfigs:
         file_resp.status_code = 200
         file_resp.text = f"{VLESS1}\n{VLESS2}\n{VLESS3}\n"
         mock_instance = MagicMock()
-        # tree + 2 blob fetches (sub.txt and nodes), README.md and config.yml skipped
-        mock_instance.get.side_effect = [tree_resp, file_resp, file_resp]
+        # tree + 3 blob fetches (sub.txt, nodes, config.yml), README.md skipped
+        mock_instance.get.side_effect = [tree_resp, file_resp, file_resp, file_resp]
         MockSession.return_value = mock_instance
         configs = fetch_repo_configs("user/repo")
-        assert len(configs) == 3  # deduped across two identical files
+        assert len(configs) == 3  # deduped across three identical files

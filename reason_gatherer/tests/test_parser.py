@@ -118,8 +118,12 @@ class TestIsVpnFile:
     def test_skips_requirements(self):
         assert is_vpn_file("requirements.txt", "requests==2.31.0\naiohttp==3.9.5\n") is False
 
-    def test_skips_yaml(self):
-        assert is_vpn_file("workflow.yml", f"{VLESS}\n{TROJAN}\n{SS}") is False
+    def test_accepts_yaml_with_vpn_content(self):
+        # yaml/yml no longer blocked — content check decides
+        assert is_vpn_file("configs.yml", f"{VLESS}\n{TROJAN}\n{SS}") is True
+
+    def test_skips_yaml_without_vpn_content(self):
+        assert is_vpn_file("workflow.yml", "on:\n  push:\n    branches: [main]\n") is False
 
     def test_rejects_non_vpn_content(self):
         assert is_vpn_file("data.txt", "hello world\nfoo bar\nbaz qux") is False

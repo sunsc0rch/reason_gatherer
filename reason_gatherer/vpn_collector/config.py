@@ -50,7 +50,7 @@ SKIP_FILENAMES = {
     "readme", "requirements", "license", "changelog",
     "vercel.json", ".gitignore", ".github",
 }
-SKIP_EXTENSIONS = {".yml", ".yaml", ".json", ".md", ".html", ".py", ".sh", ".toml"}
+SKIP_EXTENSIONS = {".json", ".md", ".html", ".py", ".sh", ".toml"}
 
 PROXY_ENV_VARS = [
     "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY",

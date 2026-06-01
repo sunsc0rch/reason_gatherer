@@ -40,6 +40,11 @@ def parse_configs_from_content(content: str) -> list[str]:
     content = content.strip()
     if not content:
         return []
+    from vpn_collector.clash_parser import is_clash_yaml, parse_clash_yaml
+    if is_clash_yaml(content):
+        clash = parse_clash_yaml(content)
+        if clash:
+            return clash
     lines = _extract_lines(content)
     seen: set[str] = set()
     result = []
