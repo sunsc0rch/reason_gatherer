@@ -155,3 +155,59 @@ class TestGetStats:
         stats = get_stats(results_dir)
         assert stats["known_good"] == 2
         assert stats["run_2026-04-27"] == 1
+
+
+import json
+from vpn_collector.storage import (
+    load_config_meta, save_config_meta, update_meta_first_seen,
+    load_privileged, save_privileged,
+)
+
+
+class TestConfigMeta:
+    def test_load_missing_returns_empty(self, results_dir):
+        assert load_config_meta(results_dir) == {}
+
+    def test_roundtrip(self, results_dir):
+        meta = {"1.2.3.4:443": {"first_seen": "2026-07-01", "fail_streak": 0}}
+        save_config_meta(results_dir, meta)
+        assert load_config_meta(results_dir) == meta
+
+    def test_update_first_seen_new_entry(self, results_dir):
+        meta = {}
+        update_meta_first_seen(meta, "1.2.3.4:443", "2026-07-10")
+        assert meta["1.2.3.4:443"]["first_seen"] == "2026-07-10"
+        assert meta["1.2.3.4:443"]["fail_streak"] == 0
+
+    def test_update_first_seen_does_not_overwrite(self, results_dir):
+        meta = {"1.2.3.4:443": {"first_seen": "2026-07-01", "fail_streak": 0}}
+        update_meta_first_seen(meta, "1.2.3.4:443", "2026-07-10")
+        assert meta["1.2.3.4:443"]["first_seen"] == "2026-07-01"
+
+
+class TestPrivileged:
+    def test_load_missing_returns_empty(self, results_dir):
+        assert load_privileged(results_dir) == []
+
+    def test_roundtrip(self, results_dir):
+        configs = [VLESS1, VLESS2]
+        save_privileged(results_dir, configs)
+        assert load_privileged(results_dir) == configs
+
+    def test_save_writes_header(self, results_dir):
+        save_privileged(results_dir, [VLESS1])
+        text = (results_dir / "privileged.txt").read_text()
+        assert text.startswith("# Updated:")
+        assert "Total: 1" in text
+
+    def test_skips_comment_lines_on_load(self, results_dir):
+        (results_dir / "privileged.txt").write_text(
+            f"# Updated: 2026-07-10 | Total: 1\n{VLESS1}\n"
+        )
+        result = load_privileged(results_dir)
+        assert result == [VLESS1]
+
+    def test_save_empty_list(self, results_dir):
+        save_privileged(results_dir, [])
+        assert load_privileged(results_dir) == []
+        assert "Total: 0" in (results_dir / "privileged.txt").read_text()

@@ -1,3 +1,4 @@
+import json
 from datetime import date, datetime
 from pathlib import Path
 
@@ -167,3 +168,45 @@ def get_stats(results_dir: Path) -> dict[str, int]:
         ]
         stats[f.stem] = len(lines)
     return stats
+
+
+def load_config_meta(results_dir: Path) -> dict:
+    meta_file = results_dir / "config_meta.json"
+    if not meta_file.exists():
+        return {}
+    try:
+        return json.loads(meta_file.read_text())
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def save_config_meta(results_dir: Path, meta: dict) -> None:
+    (results_dir / "config_meta.json").write_text(
+        json.dumps(meta, indent=2, ensure_ascii=False)
+    )
+
+
+def update_meta_first_seen(meta: dict, host_port: str, today: str) -> None:
+    if host_port not in meta:
+        meta[host_port] = {"first_seen": today, "fail_streak": 0}
+
+
+def load_privileged(results_dir: Path) -> list[str]:
+    priv_file = results_dir / "privileged.txt"
+    if not priv_file.exists():
+        return []
+    result = []
+    for line in priv_file.read_text(errors="replace").splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and is_vpn_line(line):
+            result.append(line)
+    return result
+
+
+def save_privileged(results_dir: Path, configs: list[str]) -> None:
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    header = f"# Updated: {timestamp} | Total: {len(configs)}"
+    with open(results_dir / "privileged.txt", "w") as f:
+        f.write(header + "\n")
+        for line in configs:
+            f.write(line + "\n")

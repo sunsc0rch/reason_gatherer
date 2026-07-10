@@ -76,3 +76,6 @@ DEFAULT_SOURCES = [
 TG_AUTH_FILE    = Path.home() / ".config" / "vpn_collector" / "tg_auth.json"
 TG_SESSION_FILE = Path.home() / ".config" / "vpn_collector" / "tg"
 TG_POSTS_LIMIT  = 50
+
+PRIVILEGED_MIN_DAYS = 7
+PRIVILEGED_RECHECK_RETRIES = 2
