@@ -18,6 +18,8 @@ from vpn_collector.storage import (
     load_known_hosts, load_known_good_hp, load_known_good_configs,
     rewrite_known_good, load_tcp_cache, update_tcp_cache,
     is_duplicate, save_config, rotate_run_files, trim_candidates, get_stats,
+    load_config_meta, save_config_meta, update_meta_first_seen,
+    load_privileged, save_privileged,
 )
 
 
@@ -146,6 +148,7 @@ def cmd_test() -> None:
     _log.info(f"Candidates: {len(candidates)} | Already verified: {len(candidates) - len(new_candidates)} | To test: {len(new_candidates)}")
 
     run_date = date.today().isoformat()
+    meta = load_config_meta(RESULTS_DIR)
     passed = [0]
 
     def save_immediately(config: str) -> None:
@@ -153,7 +156,12 @@ def cmd_test() -> None:
         passed[0] += 1
         _log.info(f"Saved: {config[:80]}...")
 
-    asyncio.run(tunnel_filter(new_candidates, singbox_path, on_pass=save_immediately))
+    passed_configs = asyncio.run(tunnel_filter(new_candidates, singbox_path, on_pass=save_immediately))
+    for config in passed_configs:
+        hp = extract_host_port(config)
+        if hp:
+            update_meta_first_seen(meta, f"{hp[0]}:{hp[1]}", run_date)
+    save_config_meta(RESULTS_DIR, meta)
     rotate_run_files(RESULTS_DIR, MAX_RUN_FILES)
     _log.info(f"Done: {passed[0]} new configs saved → results/run_{run_date}.txt")
 
