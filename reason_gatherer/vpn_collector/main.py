@@ -1,19 +1,21 @@
 import argparse
 import asyncio
 import logging
+import random as _random
 import random
 import sys
 from datetime import date
+from pathlib import Path
 
 _log = logging.getLogger(__name__)
 
 from vpn_collector.config import (
     RESULTS_DIR, SOURCES_FILE, LOGS_DIR, MAX_RUN_FILES, SINGBOX_SEARCH_PATHS,
-    TCP_BATCH_SIZE,
+    TCP_BATCH_SIZE, PRIVILEGED_MIN_DAYS, PRIVILEGED_RECHECK_RETRIES,
 )
 from vpn_collector.parser import extract_host_port
 from vpn_collector.sources import fetch_all_configs, add_source, sync_stars
-from vpn_collector.tester import tcp_filter, tunnel_filter, find_singbox
+from vpn_collector.tester import tcp_filter, tunnel_filter, find_singbox, test_config_tunnel
 from vpn_collector.storage import (
     load_known_hosts, load_known_good_hp, load_known_good_configs,
     rewrite_known_good, load_tcp_cache, update_tcp_cache,
@@ -170,8 +172,77 @@ def cmd_test() -> None:
         _log.info(f"Trimmed candidates.txt: removed {removed} now-verified configs")
 
 
-def cmd_recheck() -> None:
-    """Re-test all configs in known_good.txt; write survivors to recheck_YYYY-MM-DD.txt."""
+def find_free_socks_port() -> int:
+    from vpn_collector.config import SOCKS_PORT_RANGE
+    return _random.randint(*SOCKS_PORT_RANGE)
+
+
+def _update_privileged(
+    results_dir: Path,
+    survivors: list[str],
+    dead_configs: list[str],
+    singbox_path: str,
+    meta: dict,
+    today: str,
+) -> None:
+    from datetime import date as _date2
+    privileged = load_privileged(results_dir)
+    privileged_hp = set()
+    for cfg in privileged:
+        hp = extract_host_port(cfg)
+        if hp:
+            privileged_hp.add(f"{hp[0]}:{hp[1]}")
+
+    # Продвигаем серверы, стабильно работающие >= PRIVILEGED_MIN_DAYS дней
+    for cfg in survivors:
+        hp = extract_host_port(cfg)
+        if not hp:
+            continue
+        key = f"{hp[0]}:{hp[1]}"
+        entry = meta.get(key)
+        if not entry:
+            continue
+        try:
+            days = (_date2.fromisoformat(today) - _date2.fromisoformat(entry["first_seen"])).days
+        except ValueError:
+            continue
+        if days >= PRIVILEGED_MIN_DAYS and key not in privileged_hp:
+            privileged.append(cfg)
+            privileged_hp.add(key)
+            _log.info(f"Promoted to privileged ({days}d): {cfg[:80]}")
+        if key in privileged_hp:
+            meta[key]["fail_streak"] = 0
+
+    # Обрабатываем упавшие серверы из privileged
+    for cfg in dead_configs:
+        hp = extract_host_port(cfg)
+        if not hp:
+            continue
+        key = f"{hp[0]}:{hp[1]}"
+        if key not in privileged_hp:
+            continue
+        # Повторные проверки
+        recovered = False
+        for attempt in range(PRIVILEGED_RECHECK_RETRIES):
+            port = find_free_socks_port()
+            _log.info(f"Privileged retry {attempt + 1}/{PRIVILEGED_RECHECK_RETRIES}: {cfg[:60]}")
+            result = test_config_tunnel(cfg, singbox_path, port)
+            if result is not None:
+                _log.info(f"Privileged server recovered on retry: {cfg[:60]}")
+                meta[key]["fail_streak"] = 0
+                recovered = True
+                break
+        if not recovered:
+            privileged = [c for c in privileged if extract_host_port(c) != hp]
+            privileged_hp.discard(key)
+            meta[key]["fail_streak"] = meta[key].get("fail_streak", 0) + 1
+            _log.info(f"Removed from privileged after {PRIVILEGED_RECHECK_RETRIES} retries: {cfg[:60]}")
+
+    save_privileged(results_dir, privileged)
+
+
+def cmd_recheck(update_known_good: bool = False) -> None:
+    """Re-test all configs in known_good.txt; update privileged.txt accordingly."""
     RESULTS_DIR.mkdir(exist_ok=True)
     if not (RESULTS_DIR / "known_good.txt").exists():
         print("No known_good.txt found. Nothing to recheck.")
@@ -188,19 +259,15 @@ def cmd_recheck() -> None:
     configs = load_known_good_configs(RESULTS_DIR)
     _log.info(f"Recheck: {len(configs)} configs loaded from known_good.txt")
 
-    # TCP pre-filter — fast dead-server elimination.
     _log.info("TCP pre-filter...")
     tcp_alive = asyncio.run(tcp_filter(configs))
     _log.info(f"TCP: {len(tcp_alive)} alive | {len(configs) - len(tcp_alive)} unreachable")
 
-    # Full tunnel test — preserve original config strings (no marker mutation).
     _log.info("Tunnel test...")
     recheck_date = date.today().isoformat()
     out_file = RESULTS_DIR / f"recheck_{recheck_date}.txt"
     survivors: list[str] = []
 
-    # test_config_tunnel prepends a +++ / --- marker to the name; for recheck
-    # we want the original config unchanged, so strip that prefix back out.
     original_by_base = {c.split("#")[0]: c for c in tcp_alive}
 
     def on_pass(config: str) -> None:
@@ -212,9 +279,26 @@ def cmd_recheck() -> None:
 
     asyncio.run(tunnel_filter(tcp_alive, singbox_path, on_pass=on_pass))
 
+    survivors_hp = {extract_host_port(c) for c in survivors}
+    dead_configs = [c for c in configs if extract_host_port(c) not in survivors_hp]
+
+    meta = load_config_meta(RESULTS_DIR)
+    _update_privileged(
+        results_dir=RESULTS_DIR,
+        survivors=survivors,
+        dead_configs=dead_configs,
+        singbox_path=singbox_path,
+        meta=meta,
+        today=recheck_date,
+    )
+    save_config_meta(RESULTS_DIR, meta)
+
+    if update_known_good:
+        rewrite_known_good(RESULTS_DIR, survivors)
+        _log.info(f"known_good.txt updated: {len(survivors)} survivors, {len(dead_configs)} removed")
+
     _log.info(
-        f"Recheck done: {len(survivors)}/{len(configs)} still working → {out_file.name} "
-        f"({len(configs) - len(survivors)} dead, known_good.txt untouched)"
+        f"Recheck done: {len(survivors)}/{len(configs)} still working → {out_file.name}"
     )
 
 
@@ -288,6 +372,11 @@ def main() -> None:
     parser.add_argument("--sync-stars", metavar="USERNAME", help="Sync GitHub starred repos")
     parser.add_argument("--sample", type=int, metavar="N",
                         help="Randomly sample N configs before TCP filter (e.g. --sample 30000)")
+    parser.add_argument(
+        "--update-known-good",
+        action="store_true",
+        help="Used with --recheck: overwrite known_good.txt with only surviving configs",
+    )
     args = parser.parse_args()
 
     if not any([args.collect, args.test, args.full, args.recheck, args.stats, args.add_source, args.sync_stars, args.setup_tg]):
@@ -303,7 +392,7 @@ def main() -> None:
     elif args.full:
         cmd_full(sample=args.sample)
     elif args.recheck:
-        cmd_recheck()
+        cmd_recheck(update_known_good=args.update_known_good)
     elif args.stats:
         cmd_stats()
     elif args.setup_tg:
