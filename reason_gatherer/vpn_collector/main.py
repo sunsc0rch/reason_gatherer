@@ -2,7 +2,6 @@ import argparse
 import asyncio
 import logging
 import random as _random
-import random
 import sys
 from datetime import date
 from pathlib import Path
@@ -235,7 +234,7 @@ def _update_privileged(
         if not recovered:
             privileged = [c for c in privileged if extract_host_port(c) != hp]
             privileged_hp.discard(key)
-            meta[key]["fail_streak"] = meta[key].get("fail_streak", 0) + 1
+            meta[key]["fail_streak"] = 0
             _log.info(f"Removed from privileged after {PRIVILEGED_RECHECK_RETRIES} retries: {cfg[:60]}")
 
     save_privileged(results_dir, privileged)

@@ -1,9 +1,12 @@
+import json
 import pytest
 from pathlib import Path
 from vpn_collector.storage import (
     load_known_hosts, load_known_good_hp, load_tcp_cache, update_tcp_cache,
     trim_candidates, is_duplicate, save_config,
     rotate_run_files, get_stats, update_known_good_header,
+    load_config_meta, save_config_meta, update_meta_first_seen,
+    load_privileged, save_privileged,
 )
 
 VLESS1 = "vless://uuid1@1.2.3.4:443?type=tcp#Server1"
@@ -155,13 +158,6 @@ class TestGetStats:
         stats = get_stats(results_dir)
         assert stats["known_good"] == 2
         assert stats["run_2026-04-27"] == 1
-
-
-import json
-from vpn_collector.storage import (
-    load_config_meta, save_config_meta, update_meta_first_seen,
-    load_privileged, save_privileged,
-)
 
 
 class TestConfigMeta:
