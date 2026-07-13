@@ -16,7 +16,7 @@ fi
 LOG_FILE="$PROJECT_DIR/logs/cron_recheck.log"
 
 # Cron-строка: каждые 3 дня в 03:00
-CRON_LINE="0 3 */3 * * cd $PROJECT_DIR && $PYTHON -m vpn_collector --recheck --update-known-good >> $LOG_FILE 2>&1"
+CRON_LINE="0 3 */3 * * cd $PROJECT_DIR && $PYTHON -m vpn_collector.main --recheck --update-known-good >> $LOG_FILE 2>&1"
 CRON_MARKER="vpn_collector --recheck"
 
 # Idempotent: добавить только если строки ещё нет
