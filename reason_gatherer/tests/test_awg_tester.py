@@ -1,7 +1,7 @@
 # tests/test_awg_tester.py
 import subprocess
 import pytest
-from unittest.mock import patch, call, MagicMock
+from unittest.mock import patch, MagicMock
 
 from awg_collector.tester import tcp_check, test_awg_tunnel, passes_speed, strip_dns
 
@@ -72,7 +72,7 @@ class TestAwgTunnel:
     def test_returns_none_when_awg_quick_fails(self):
         def side_effect(*args, **kwargs):
             cmd = args[0] if args else kwargs.get("args", [])
-            if "up" in cmd:
+            if "awg-quick" in cmd:
                 r = MagicMock()
                 r.returncode = 1
                 r.stdout = ""
@@ -129,5 +129,5 @@ class TestAwgTunnel:
         with patch("awg_collector.tester._run_sudo", side_effect=side_effect):
             test_awg_tunnel(SAMPLE_CONF)
 
-        if seen_confs:
-            assert "DNS" not in seen_confs[0]
+        assert seen_confs, "conf file was not read — awg-quick up was never called or path extraction failed"
+        assert "DNS" not in seen_confs[0]
