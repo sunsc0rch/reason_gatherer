@@ -5,7 +5,6 @@ from pathlib import Path
 import requests
 
 from awg_collector.config import (
-    DEFAULT_SOURCES_AWG, SOURCES_AWG_FILE, PROXY_ENV_VARS,
     GITHUB_API, GITHUB_RAW, TG_POSTS_LIMIT,
 )
 from awg_collector.parser import parse_awg_configs

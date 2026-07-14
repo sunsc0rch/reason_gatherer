@@ -53,7 +53,10 @@ async def fetch_tg_channel_configs(client, channel: str, limit: int) -> list[dic
                 configs.extend(parse_awg_configs(msg.text))
             # Вложения .conf
             if msg.document:
-                name = getattr(msg.document.attributes[-1], "file_name", "") if msg.document.attributes else ""
+                name = next(
+                    (getattr(a, "file_name", None) for a in (msg.document.attributes or []) if getattr(a, "file_name", None)),
+                    ""
+                )
                 if name.endswith(".conf"):
                     try:
                         data = await client.download_media(msg.document, bytes)
