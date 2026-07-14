@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).parent.parent
@@ -35,9 +34,7 @@ GITHUB_RAW = "https://raw.githubusercontent.com"
 AWG_FIELDS = {"Jc", "Jmin", "Jmax", "S1", "S2", "H1", "H2", "H3", "H4"}
 
 DEFAULT_SOURCES_AWG: list[dict] = [
-    {"type": "tg",     "value": "free_vpn_amnezia_bot"},
-    {"type": "tg",     "value": "amnezia_vpn_news_ru"},
-    {"type": "github", "value": "Delta-Kronecker/WARP-Config"},
-    {"type": "github", "value": "darknessshade/Amnezia-VPN-Config"},
-    {"type": "url",    "value": "https://keysconf.com/amneziawg/"},
+    {"type": "tg", "value": "amnezia_vpn_news_ru"},
+    {"type": "tg", "value": "Neko_Shadowsocks"},
+    {"type": "tg", "value": "amnezia_config"},
 ]
