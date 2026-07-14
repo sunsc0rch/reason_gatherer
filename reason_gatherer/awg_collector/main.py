@@ -1,9 +1,9 @@
 import argparse
 import asyncio
+import concurrent.futures
 import logging
 import sys
 from datetime import date
-from pathlib import Path
 
 from awg_collector.config import (
     RESULTS_AWG_DIR, SOURCES_AWG_FILE, LOGS_DIR,
@@ -61,7 +61,6 @@ async def _tcp_filter(configs: list[dict]) -> list[dict]:
 
 
 def _tunnel_test_batch(configs: list[dict]) -> list[dict]:
-    import concurrent.futures
     passing = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=AWG_TUNNEL_CONCURRENCY) as pool:
         futures = {pool.submit(test_awg_tunnel, cfg["text"]): cfg for cfg in configs}
