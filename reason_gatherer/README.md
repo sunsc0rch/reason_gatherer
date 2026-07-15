@@ -32,6 +32,32 @@ Each config is real-tunnel-tested (handshake verified + speed ≥ 1 Mbit/s). The
 
 Sources: Telegram [@amnezia_wg](https://t.me/amnezia_wg), [@vpnconfigsgive](https://t.me/vpnconfigsgive), [Delta-Kronecker/WARP-Config](https://github.com/Delta-Kronecker/WARP-Config).
 
+**Dependencies:**
+
+| Dependency | Purpose |
+|---|---|
+| `requests` | HTTP fetching of configs and ZIP archives |
+| `telethon` | Scraping Telegram channels (optional — skipped if absent) |
+| `amneziawg-go` | Userspace AWG daemon for tunnel testing (binary, not pip) |
+| `awg`, `awg-quick` | AWG CLI tools — part of [amneziawg-tools](https://github.com/amnezia-vpn/amneziawg-tools) |
+
+```bash
+# Python deps (already in requirements.txt)
+pip install requests telethon
+
+# amneziawg-go — build from source (requires Go 1.25+)
+git clone https://github.com/amnezia-vpn/amneziawg-go
+cd amneziawg-go && GOPROXY=https://goproxy.io,direct make && sudo cp amneziawg-go /usr/local/bin/
+
+# awg / awg-quick — build from source
+git clone https://github.com/amnezia-vpn/amneziawg-tools
+cd amneziawg-tools && make && sudo make install
+
+# Allow awg-quick to run without password (required for tunnel testing)
+echo "$USER ALL=(ALL) NOPASSWD: /usr/local/bin/awg,/usr/local/bin/awg-quick,/usr/bin/ip,/usr/bin/curl" \
+  | sudo tee /etc/sudoers.d/awg_collector
+```
+
 ```bash
 # Fetch + test all sources, update known_good pool
 python -m awg_collector.main --collect
