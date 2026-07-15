@@ -5,17 +5,25 @@ from pathlib import Path
 
 from awg_collector.config import RESULTS_AWG_DIR, KNOWN_GOOD_DIR
 
+# AWG 2.x-only fields not supported by AmneziaWG 1.0.1
+_AWG2_FIELDS = re.compile(r"^\s*(S3|I1)\s*=.*\n?", re.MULTILINE | re.IGNORECASE)
+
 
 def _ensure_dirs() -> None:
     RESULTS_AWG_DIR.mkdir(exist_ok=True)
     KNOWN_GOOD_DIR.mkdir(exist_ok=True)
 
 
+def strip_awg2_fields(conf_text: str) -> str:
+    """Remove S3 and I1 keys — AWG 2.x additions unsupported by AmneziaWG 1.0.1."""
+    return _AWG2_FIELDS.sub("", conf_text)
+
+
 def save_known_good(conf_text: str, endpoint: str) -> Path:
     _ensure_dirs()
     host, _, port = endpoint.rpartition(":")
     path = KNOWN_GOOD_DIR / f"{host}_{port}.conf"
-    path.write_text(conf_text)
+    path.write_text(strip_awg2_fields(conf_text))
     return path
 
 
@@ -42,7 +50,7 @@ def remove_known_good(endpoint: str) -> None:
 
 def build_vpn_archive() -> Path:
     _ensure_dirs()
-    archive_path = RESULTS_AWG_DIR / "all_configs.vpn"
+    archive_path = RESULTS_AWG_DIR / "all_configs.zip"
     configs = load_known_good()
     with zipfile.ZipFile(archive_path, "w", zipfile.ZIP_DEFLATED) as zf:
         for cfg in configs:

@@ -26,7 +26,7 @@ PROXY_ENV_VARS = [
 
 TG_AUTH_FILE    = Path.home() / ".config" / "vpn_collector" / "tg_auth.json"
 TG_SESSION_FILE = Path.home() / ".config" / "vpn_collector" / "tg"
-TG_POSTS_LIMIT  = 50
+TG_POSTS_LIMIT  = 200
 
 GITHUB_API = "https://api.github.com"
 GITHUB_RAW = "https://raw.githubusercontent.com"

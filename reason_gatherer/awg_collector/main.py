@@ -150,10 +150,10 @@ def cmd_stats() -> None:
     meta = load_config_meta()
     print(f"known_good: {len(configs)} configs")
     print(f"config_meta entries: {len(meta)}")
-    archive = RESULTS_AWG_DIR / "all_configs.vpn"
+    archive = RESULTS_AWG_DIR / "all_configs.zip"
     if archive.exists():
         size_kb = archive.stat().st_size // 1024
-        print(f"all_configs.vpn: {size_kb} KB")
+        print(f"all_configs.zip: {size_kb} KB")
 
 
 def main() -> None:
@@ -162,7 +162,7 @@ def main() -> None:
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--collect",    action="store_true", help="Fetch + test configs")
     group.add_argument("--recheck",    action="store_true", help="Recheck known_good")
-    group.add_argument("--export",     action="store_true", help="Rebuild all_configs.vpn")
+    group.add_argument("--export",     action="store_true", help="Rebuild all_configs.zip")
     group.add_argument("--add-source", metavar="URL",        help="Add source to sources_awg.json")
     group.add_argument("--stats",      action="store_true", help="Print statistics")
     args = parser.parse_args()
