@@ -91,10 +91,7 @@ def cmd_collect() -> None:
 
     save_candidates(configs)
 
-    _log.info("TCP pre-filter...")
-    configs = asyncio.run(_tcp_filter(configs))
-    _log.info(f"TCP passed: {len(configs)}")
-
+    # AWG uses UDP — TCP pre-filter is not applicable; go straight to tunnel test
     _log.info(f"Tunnel testing {len(configs)} configs (concurrency={AWG_TUNNEL_CONCURRENCY})...")
     passing = _tunnel_test_batch(configs)
     _log.info(f"Passed tunnel test: {len(passing)}")

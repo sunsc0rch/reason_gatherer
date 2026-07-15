@@ -90,9 +90,22 @@ def fetch_all_configs(sources_file: Path) -> list[dict]:
 
 
 def _fetch_url(url: str, timeout: int = 20) -> str:
+    import io, zipfile
     session = _clean_session()
     r = session.get(url, timeout=timeout)
     r.raise_for_status()
+    content_type = r.headers.get("Content-Type", "")
+    # Unpack ZIP archives (e.g. .vpn or .zip URLs)
+    if url.endswith((".zip", ".vpn")) or "zip" in content_type:
+        parts = []
+        try:
+            with zipfile.ZipFile(io.BytesIO(r.content)) as zf:
+                for name in zf.namelist():
+                    if name.endswith(".conf"):
+                        parts.append(zf.read(name).decode("utf-8", errors="replace"))
+        except zipfile.BadZipFile:
+            pass
+        return "\n".join(parts)
     return r.text
 
 

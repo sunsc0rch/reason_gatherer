@@ -1,4 +1,5 @@
 [
+  {"type": "url", "value": "https://raw.githubusercontent.com/Delta-Kronecker/WARP-Config/main/wireguard_configs.zip"},
   {"type": "tg", "value": "amnezia_vpn_news_ru"},
   {"type": "tg", "value": "Neko_Shadowsocks"},
   {"type": "tg", "value": "amnezia_config"}

@@ -47,49 +47,77 @@ def passes_speed(speed_bytes: float) -> bool:
     return speed_bytes >= MIN_SPEED_MBPS * 125_000
 
 
+def _inject_table_off(conf_text: str) -> str:
+    """Add Table = off to [Interface] so awg-quick doesn't change host routes."""
+    if re.search(r"^\s*Table\s*=", conf_text, re.MULTILINE | re.IGNORECASE):
+        return conf_text
+    return re.sub(r"(\[Interface\])", r"\1\nTable = off", conf_text, count=1)
+
+
+def _handshake_age(iface: str) -> int | None:
+    """Return seconds since last AWG handshake, or None if no handshake yet."""
+    r = _run_sudo(["awg", "show", iface, "latest-handshakes"], timeout=5)
+    if r.returncode != 0:
+        return None
+    for line in r.stdout.splitlines():
+        parts = line.split()
+        if len(parts) >= 2:
+            try:
+                ts = int(parts[1])
+                if ts == 0:
+                    return None
+                import time
+                return int(time.time()) - ts
+            except ValueError:
+                pass
+    return None
+
+
 def test_awg_tunnel(conf_text: str) -> float | None:
+    """Test AWG config in the main network namespace with Table=off (no route changes).
+
+    amneziawg-go needs internet access to reach the AWG endpoint; running inside
+    an isolated netns breaks UDP transport. Table=off prevents host-route pollution
+    while we measure speed on the interface.
+    """
     uid = uuid.uuid4().hex[:10]
-    ns_name = f"awg_{uid}"
-    # Interface name derived from conf filename by awg-quick (max 15 chars)
     iface = f"awg{uid[:11]}"
     tmp_conf = Path(tempfile.gettempdir()) / f"{iface}.conf"
 
-    # Strip DNS to avoid resolvconf issues inside netns; DNS handled via /etc/netns
     clean_conf = strip_dns(conf_text)
+    clean_conf = _inject_table_off(clean_conf)
     tmp_conf.write_text(clean_conf)
+    # awg-quick needs the file to be root-readable but not world-accessible
+    try:
+        tmp_conf.chmod(0o600)
+    except Exception:
+        pass
 
-    ns_created = False
     iface_up = False
     try:
-        # Create network namespace
-        r = _run_sudo(["ip", "netns", "add", ns_name], timeout=10)
+        r = _run_sudo(["awg-quick", "up", str(tmp_conf)], timeout=20)
         if r.returncode != 0:
-            logger.debug(f"netns add failed: {r.stderr}")
-            return None
-        ns_created = True
-
-        # Set up per-netns DNS so curl can resolve inside the namespace
-        ns_resolv = Path(f"/etc/netns/{ns_name}")
-        _run_sudo(["mkdir", "-p", str(ns_resolv)], timeout=5)
-        _run_sudo(["bash", "-c", f"echo 'nameserver 1.1.1.1' > /etc/netns/{ns_name}/resolv.conf"], timeout=5)
-
-        # Bring up loopback inside netns
-        _run_sudo(["ip", "netns", "exec", ns_name, "ip", "link", "set", "lo", "up"], timeout=5)
-
-        # Bring up AWG interface inside netns
-        r = _run_sudo(["ip", "netns", "exec", ns_name, "awg-quick", "up", str(tmp_conf)], timeout=15)
-        if r.returncode != 0:
-            logger.debug(f"awg-quick up failed: {r.stderr}")
+            logger.debug(f"awg-quick up failed for {iface}: {r.stderr[:300]}")
             return None
         iface_up = True
 
-        # Speedtest inside netns
+        # Wait for WireGuard handshake (up to 10 s in 1 s steps)
+        import time
+        for _ in range(10):
+            age = _handshake_age(iface)
+            if age is not None and age < 30:
+                break
+            time.sleep(1)
+        else:
+            logger.debug(f"No handshake on {iface}")
+            return None
+
+        # Measure download speed: curl bound to the AWG interface
         for url in SPEEDTEST_URLS:
             try:
                 r = _run_sudo(
-                    ["ip", "netns", "exec", ns_name,
-                     "curl", "--max-time", "15", "-o", "/dev/null",
-                     "-w", "%{speed_download}", "-s", "--", url],
+                    ["curl", "--max-time", "15", "--interface", iface,
+                     "-o", "/dev/null", "-w", "%{speed_download}", "-s", "--", url],
                     timeout=20,
                 )
                 if r.returncode == 0 and r.stdout.strip():
@@ -102,15 +130,12 @@ def test_awg_tunnel(conf_text: str) -> float | None:
         return None
 
     except subprocess.TimeoutExpired:
-        logger.debug(f"Timeout testing AWG config (ns={ns_name})")
+        logger.debug(f"Timeout testing AWG config (iface={iface})")
         return None
 
     finally:
         if iface_up:
-            _run_sudo(["ip", "netns", "exec", ns_name, "awg-quick", "down", str(tmp_conf)], timeout=10)
-        if ns_created:
-            _run_sudo(["ip", "netns", "del", ns_name], timeout=5)
-            _run_sudo(["rm", "-rf", f"/etc/netns/{ns_name}"], timeout=5)
+            _run_sudo(["awg-quick", "down", str(tmp_conf)], timeout=10)
         tmp_conf.unlink(missing_ok=True)
 
 
