@@ -8,6 +8,7 @@ from datetime import date
 from awg_collector.config import (
     RESULTS_AWG_DIR, SOURCES_AWG_FILE, LOGS_DIR,
     AWG_TUNNEL_CONCURRENCY, AWG_RECHECK_RETRIES, TCP_CONCURRENCY, TCP_TIMEOUT,
+    TOP_N_CONFIGS,
 )
 from awg_collector.parser import parse_awg_configs
 from awg_collector.sources import fetch_all_configs, add_source
@@ -61,6 +62,7 @@ async def _tcp_filter(configs: list[dict]) -> list[dict]:
 
 
 def _tunnel_test_batch(configs: list[dict]) -> list[dict]:
+    """Return passing configs with 'speed' key (bytes/s) attached, sorted fastest first."""
     passing = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=AWG_TUNNEL_CONCURRENCY) as pool:
         futures = {pool.submit(test_awg_tunnel, cfg["text"]): cfg for cfg in configs}
@@ -68,12 +70,13 @@ def _tunnel_test_batch(configs: list[dict]) -> list[dict]:
             try:
                 speed = future.result()
                 if speed is not None and passes_speed(speed):
-                    passing.append(cfg)
+                    passing.append({**cfg, "speed": speed})
                     _log.info(f"PASS {cfg['endpoint']} {speed/125000:.1f} Mbps")
                 else:
                     _log.info(f"FAIL {cfg['endpoint']}")
             except Exception as e:
                 _log.warning(f"Error testing {cfg['endpoint']}: {e}")
+    passing.sort(key=lambda c: c["speed"], reverse=True)
     return passing
 
 
@@ -94,10 +97,18 @@ def cmd_collect() -> None:
     # AWG uses UDP — TCP pre-filter is not applicable; go straight to tunnel test
     _log.info(f"Tunnel testing {len(configs)} configs (concurrency={AWG_TUNNEL_CONCURRENCY})...")
     passing = _tunnel_test_batch(configs)
-    _log.info(f"Passed tunnel test: {len(passing)}")
+    _log.info(f"Passed tunnel test: {len(passing)}, keeping top {TOP_N_CONFIGS} by speed")
+
+    top = passing[:TOP_N_CONFIGS]
+
+    # Clear stale known_good entries that didn't make the cut this round
+    for old in load_known_good():
+        ep = old["endpoint"]
+        if not any(c["endpoint"] == ep for c in top):
+            remove_known_good(ep)
 
     meta = load_config_meta()
-    for cfg in passing:
+    for cfg in top:
         save_known_good(cfg["text"], cfg["endpoint"])
         update_meta_first_seen(meta, cfg["endpoint"], today)
 
@@ -113,30 +124,56 @@ def cmd_recheck() -> None:
     _log.info(f"Rechecking {len(configs)} known_good configs...")
 
     meta = load_config_meta()
+    passing = []
     removed = 0
 
     for cfg in configs:
         ep = cfg["endpoint"]
-        passed = False
+        best_speed = None
         for attempt in range(AWG_RECHECK_RETRIES + 1):
             speed = test_awg_tunnel(cfg["text"])
             if speed is not None and passes_speed(speed):
                 _log.info(f"PASS {ep} {speed/125000:.1f} Mbps")
-                passed = True
+                best_speed = speed
                 break
             _log.info(f"FAIL attempt {attempt+1}/{AWG_RECHECK_RETRIES+1} {ep}")
 
-        if not passed:
+        if best_speed is not None:
+            passing.append({**cfg, "speed": best_speed})
+        else:
             _log.info(f"Removing {ep} from known_good")
             remove_known_good(ep)
             if ep in meta:
                 meta[ep]["fail_streak"] = 0
             removed += 1
 
+    # Keep top N by speed; drop the rest
+    passing.sort(key=lambda c: c["speed"], reverse=True)
+    top = passing[:TOP_N_CONFIGS]
+    for cfg in passing[TOP_N_CONFIGS:]:
+        remove_known_good(cfg["endpoint"])
+        removed += 1
+        _log.info(f"Pruned (outside top {TOP_N_CONFIGS}) {cfg['endpoint']}")
+
+    for cfg in top:
+        save_known_good(cfg["text"], cfg["endpoint"])
+        update_meta_first_seen(meta, cfg["endpoint"], today)
+
     save_config_meta(meta)
     archive = build_vpn_archive()
     remaining = len(load_known_good())
     _log.info(f"Recheck done: removed={removed} remaining={remaining} | {archive}")
+
+
+def cmd_prune() -> None:
+    """Remove all known_good configs beyond TOP_N_CONFIGS (no retesting)."""
+    configs = load_known_good()
+    to_drop = configs[TOP_N_CONFIGS:]
+    for cfg in to_drop:
+        remove_known_good(cfg["endpoint"])
+    archive = build_vpn_archive()
+    remaining = len(load_known_good())
+    _log.info(f"Pruned {len(to_drop)} configs, remaining: {remaining} | {archive}")
 
 
 def cmd_export() -> None:
@@ -160,8 +197,9 @@ def main() -> None:
     _setup_logging()
     parser = argparse.ArgumentParser(description="AWG config collector")
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("--collect",    action="store_true", help="Fetch + test configs")
-    group.add_argument("--recheck",    action="store_true", help="Recheck known_good")
+    group.add_argument("--collect",    action="store_true", help="Fetch + test configs, keep top N")
+    group.add_argument("--recheck",    action="store_true", help="Recheck known_good, keep top N")
+    group.add_argument("--prune",      action="store_true", help=f"Drop configs beyond top {TOP_N_CONFIGS} (no retest)")
     group.add_argument("--export",     action="store_true", help="Rebuild all_configs.zip")
     group.add_argument("--add-source", metavar="URL",        help="Add source to sources_awg.json")
     group.add_argument("--stats",      action="store_true", help="Print statistics")
@@ -171,6 +209,8 @@ def main() -> None:
         cmd_collect()
     elif args.recheck:
         cmd_recheck()
+    elif args.prune:
+        cmd_prune()
     elif args.export:
         cmd_export()
     elif args.add_source:

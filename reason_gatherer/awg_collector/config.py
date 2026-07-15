@@ -12,6 +12,7 @@ AWG_TUNNEL_CONCURRENCY = 3
 AWG_TEST_TIMEOUT = 30          # секунд на один конфиг
 AWG_RECHECK_RETRIES = 2
 MIN_SPEED_MBPS = 1.0
+TOP_N_CONFIGS = 50             # сколько fastest конфигов сохранять в known_good
 
 SPEEDTEST_URLS = [
     "http://cachefly.cachefly.net/1mb.test",
