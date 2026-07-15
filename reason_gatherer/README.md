@@ -16,6 +16,38 @@ Scrapes free VPN configs from GitHub repositories, filters them by TCP reachabil
 
 Configs marked `+++` passed the Claude.com access check (unblocked from Russia). Configs marked `---` passed the speed test but Claude.com was blocked through them.
 
+---
+
+## AmneziaWG configs (for AmneziaVPN 1.0.1)
+
+A separate collector scrapes and tunnel-tests AmneziaWG configs from community sources and packages the fastest ones for direct import into the Amnezia app.
+
+| File | Description |
+|---|---|
+| [**all_configs.zip**](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results_awg/all_configs.zip) | Top 50 fastest AWG configs — import directly into AmneziaVPN |
+
+**Import:** Amnezia app → Add VPN → From file → `all_configs.zip`
+
+Each config is real-tunnel-tested (handshake verified + speed ≥ 1 Mbit/s). The full pool of verified configs (`results_awg/known_good/`) contains all passing configs; the archive is rebuilt to include only the 50 fastest after each run.
+
+Sources: Telegram [@amnezia_wg](https://t.me/amnezia_wg), [@vpnconfigsgive](https://t.me/vpnconfigsgive), [Delta-Kronecker/WARP-Config](https://github.com/Delta-Kronecker/WARP-Config).
+
+```bash
+# Fetch + test all sources, update known_good pool
+python -m awg_collector.main --collect
+
+# Re-verify existing pool, remove dead configs
+python -m awg_collector.main --recheck
+
+# Rebuild archive from current pool (top 50 by speed)
+python -m awg_collector.main --export
+
+# Stats
+python -m awg_collector.main --stats
+```
+
+---
+
 ## How it works
 
 ```
