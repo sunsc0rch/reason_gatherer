@@ -3,7 +3,7 @@ import re
 import zipfile
 from pathlib import Path
 
-from awg_collector.config import RESULTS_AWG_DIR, KNOWN_GOOD_DIR
+from awg_collector.config import RESULTS_AWG_DIR, KNOWN_GOOD_DIR, TOP_N_CONFIGS
 
 # AWG 2.x-only fields not supported by AmneziaWG 1.0.1
 _AWG2_FIELDS = re.compile(r"^\s*(S3|I1)\s*=.*\n?", re.MULTILINE | re.IGNORECASE)
@@ -48,10 +48,19 @@ def remove_known_good(endpoint: str) -> None:
     path.unlink(missing_ok=True)
 
 
-def build_vpn_archive() -> Path:
+def build_vpn_archive(meta: dict | None = None) -> Path:
+    """Build all_configs.zip with top TOP_N_CONFIGS entries sorted by speed.
+
+    If meta is provided, configs are sorted by meta[endpoint]['speed'] descending
+    and only the fastest TOP_N_CONFIGS are included. Without meta, all known_good
+    configs are included unsorted.
+    """
     _ensure_dirs()
     archive_path = RESULTS_AWG_DIR / "all_configs.zip"
     configs = load_known_good()
+    if meta is not None:
+        configs.sort(key=lambda c: meta.get(c["endpoint"], {}).get("speed", 0), reverse=True)
+        configs = configs[:TOP_N_CONFIGS]
     with zipfile.ZipFile(archive_path, "w", zipfile.ZIP_DEFLATED) as zf:
         for cfg in configs:
             zf.writestr(cfg["filename"], cfg["text"])
@@ -75,9 +84,10 @@ def save_config_meta(meta: dict) -> None:
     )
 
 
-def update_meta_first_seen(meta: dict, endpoint: str, today: str) -> None:
+def update_meta_entry(meta: dict, endpoint: str, today: str, speed: float) -> None:
     if endpoint not in meta:
         meta[endpoint] = {"first_seen": today, "fail_streak": 0}
+    meta[endpoint]["speed"] = speed
 
 
 def save_candidates(configs: list[dict]) -> None:
