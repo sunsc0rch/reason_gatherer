@@ -24,7 +24,13 @@ A separate collector scrapes and tunnel-tests AmneziaWG configs from community s
 
 | File | Description |
 |---|---|
-| [**all_configs.zip**](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results_awg/all_configs.zip) | Top 50 fastest AWG configs — import directly into AmneziaVPN |
+| [**known_good.txt**](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/known_good.txt) | All verified configs ever collected — use as subscription URL |
+| [run_2026-07-13.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-07-13.txt) | Latest run |
+| [run_2026-07-09.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-07-09.txt) | Previous run |
+| [run_2026-07-06.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-07-06.txt) | Earlier run |
+| [run_2026-06-30.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-06-30.txt) | Earlier run |
+| [run_2026-06-24.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-06-24.txt) | Earlier run |
+| [recheck_2026-05-25.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/recheck_2026-05-25.txt) | Latest recheck (configs re-verified from known_good) |
 
 **Import:** Amnezia app → Add VPN → From file → `all_configs.zip`
 
