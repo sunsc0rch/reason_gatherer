@@ -4,7 +4,7 @@ import os
 import requests
 from pathlib import Path
 
-from vpn_collector.config import DEFAULT_SOURCES, PROXY_ENV_VARS, SOURCES_FILE
+from vpn_collector.config import DEFAULT_SOURCES, SOURCES_FILE
 from vpn_collector.parser import parse_configs_from_content, is_vpn_file
 
 logger = logging.getLogger(__name__)
@@ -13,10 +13,51 @@ GITHUB_API = "https://api.github.com"
 GITHUB_RAW = "https://raw.githubusercontent.com"
 
 
+_use_proxy = False  # learned for the lifetime of the process once direct access fails
+
+
 def _clean_session() -> requests.Session:
     session = requests.Session()
     session.trust_env = False
     return session
+
+
+def _proxies_from_env() -> dict | None:
+    http_proxy = os.environ.get("HTTP_PROXY") or os.environ.get("http_proxy")
+    https_proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy") or http_proxy
+    if not http_proxy and not https_proxy:
+        return None
+    return {"http": http_proxy, "https": https_proxy}
+
+
+def _request(session: requests.Session, method: str, url: str, **kwargs) -> requests.Response:
+    """Try a direct request first; fall back to the system proxy if direct access is blocked.
+
+    Once direct access is found to fail, subsequent calls in this process go
+    straight through the proxy — avoids re-paying the ~11s dead-network
+    timeout on every request for the rest of the run.
+    """
+    global _use_proxy
+    proxies = _proxies_from_env()
+
+    if _use_proxy and proxies:
+        return session.request(method, url, proxies=proxies, **kwargs)
+
+    try:
+        resp = session.request(method, url, **kwargs)
+        if resp.status_code not in (502, 503, 504):
+            return resp
+    except requests.RequestException:
+        resp = None
+
+    if not proxies:
+        if resp is not None:
+            return resp
+        raise requests.RequestException(f"direct request to {url} failed and no proxy is configured")
+
+    logger.warning(f"Direct access to {url} failed, retrying via system proxy")
+    _use_proxy = True
+    return session.request(method, url, proxies=proxies, **kwargs)
 
 
 def load_sources(sources_file: Path) -> list[dict]:
@@ -65,7 +106,8 @@ def sync_stars(username: str, sources_file: Path) -> int:
     page = 1
     while True:
         try:
-            resp = _clean_session().get(
+            resp = _request(
+                _clean_session(), "GET",
                 f"{GITHUB_API}/users/{username}/starred",
                 params={"per_page": 100, "page": page},
                 timeout=10,
@@ -100,7 +142,7 @@ def _is_fetchable(path: str) -> bool:
 
 def fetch_url_configs(url: str) -> list[str]:
     try:
-        resp = _clean_session().get(url, timeout=15)
+        resp = _request(_clean_session(), "GET", url, timeout=15)
         return parse_configs_from_content(resp.text)
     except Exception as e:
         logger.warning(f"Failed to fetch {url}: {e}")
@@ -110,7 +152,8 @@ def fetch_url_configs(url: str) -> list[str]:
 def fetch_repo_configs(repo: str) -> list[str]:
     try:
         session = _clean_session()
-        resp = session.get(
+        resp = _request(
+            session, "GET",
             f"{GITHUB_API}/repos/{repo}/git/trees/HEAD",
             params={"recursive": "1"},
             timeout=15,
@@ -126,7 +169,7 @@ def fetch_repo_configs(repo: str) -> list[str]:
         configs: list[str] = []
         for path in txt_files:
             try:
-                raw = session.get(f"{GITHUB_RAW}/{repo}/HEAD/{path}", timeout=10)
+                raw = _request(session, "GET", f"{GITHUB_RAW}/{repo}/HEAD/{path}", timeout=10)
                 if raw.status_code != 200:
                     continue
                 if is_vpn_file(path, raw.text):

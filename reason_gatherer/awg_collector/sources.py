@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 from pathlib import Path
 
 import requests
@@ -11,11 +12,51 @@ from awg_collector.parser import parse_awg_configs
 
 logger = logging.getLogger(__name__)
 
+_use_proxy = False  # learned for the lifetime of the process once direct access fails
+
 
 def _clean_session() -> requests.Session:
     session = requests.Session()
     session.trust_env = False
     return session
+
+
+def _proxies_from_env() -> dict | None:
+    http_proxy = os.environ.get("HTTP_PROXY") or os.environ.get("http_proxy")
+    https_proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy") or http_proxy
+    if not http_proxy and not https_proxy:
+        return None
+    return {"http": http_proxy, "https": https_proxy}
+
+
+def _request(session: requests.Session, method: str, url: str, **kwargs) -> requests.Response:
+    """Try a direct request first; fall back to the system proxy if direct access is blocked.
+
+    Once direct access is found to fail, subsequent calls in this process go
+    straight through the proxy — avoids re-paying the ~11s dead-network
+    timeout on every request for the rest of the run.
+    """
+    global _use_proxy
+    proxies = _proxies_from_env()
+
+    if _use_proxy and proxies:
+        return session.request(method, url, proxies=proxies, **kwargs)
+
+    try:
+        resp = session.request(method, url, **kwargs)
+        if resp.status_code not in (502, 503, 504):
+            return resp
+    except requests.RequestException:
+        resp = None
+
+    if not proxies:
+        if resp is not None:
+            return resp
+        raise requests.RequestException(f"direct request to {url} failed and no proxy is configured")
+
+    logger.warning(f"Direct access to {url} failed, retrying via system proxy")
+    _use_proxy = True
+    return session.request(method, url, proxies=proxies, **kwargs)
 
 
 def load_sources(sources_file: Path) -> list[dict]:
@@ -92,7 +133,7 @@ def fetch_all_configs(sources_file: Path) -> list[dict]:
 def _fetch_url(url: str, timeout: int = 20) -> str:
     import io, zipfile
     session = _clean_session()
-    r = session.get(url, timeout=timeout)
+    r = _request(session, "GET", url, timeout=timeout)
     r.raise_for_status()
     content_type = r.headers.get("Content-Type", "")
     # Unpack ZIP archives (e.g. .vpn or .zip URLs)
@@ -113,7 +154,7 @@ def _fetch_github_repo(repo: str) -> list[dict]:
     session = _clean_session()
     # Get default branch
     try:
-        r = session.get(f"{GITHUB_API}/repos/{repo}", timeout=10)
+        r = _request(session, "GET", f"{GITHUB_API}/repos/{repo}", timeout=10)
         r.raise_for_status()
         branch = r.json().get("default_branch", "main")
     except Exception:
@@ -121,7 +162,8 @@ def _fetch_github_repo(repo: str) -> list[dict]:
 
     # Get file tree
     try:
-        r = session.get(
+        r = _request(
+            session, "GET",
             f"{GITHUB_API}/repos/{repo}/git/trees/{branch}?recursive=1",
             timeout=15,
         )
