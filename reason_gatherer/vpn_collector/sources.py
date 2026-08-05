@@ -30,6 +30,39 @@ def _proxies_from_env() -> dict | None:
     return {"http": http_proxy, "https": https_proxy}
 
 
+def _call_with_hard_timeout(session: requests.Session, method: str, url: str,
+                             hard_timeout: float, **kwargs) -> requests.Response:
+    """Run session.request on a daemon thread and enforce hard_timeout no matter what.
+
+    A stalled local HTTP proxy can accept the TCP connection instantly (visible
+    as ESTABLISHED) and then never respond to the CONNECT tunnel — observed to
+    hang a run for 30+ minutes despite `timeout=` being passed to requests.
+    The worker thread is daemonized so an eventually-abandoned socket never
+    blocks process exit.
+    """
+    import threading
+    import concurrent.futures
+
+    fut: concurrent.futures.Future = concurrent.futures.Future()
+
+    def _worker() -> None:
+        try:
+            result = session.request(method, url, **kwargs)
+        except Exception as e:
+            fut.set_exception(e)
+        else:
+            try:
+                fut.set_result(result)
+            except concurrent.futures.InvalidStateError:
+                pass
+
+    threading.Thread(target=_worker, daemon=True).start()
+    try:
+        return fut.result(timeout=hard_timeout)
+    except concurrent.futures.TimeoutError:
+        raise requests.exceptions.Timeout(f"{url} exceeded hard timeout of {hard_timeout}s")
+
+
 def _request(session: requests.Session, method: str, url: str, **kwargs) -> requests.Response:
     """Try a direct request first; fall back to the system proxy if direct access is blocked.
 
@@ -39,12 +72,13 @@ def _request(session: requests.Session, method: str, url: str, **kwargs) -> requ
     """
     global _use_proxy
     proxies = _proxies_from_env()
+    hard_timeout = kwargs.get("timeout", 15) + 8
 
     if _use_proxy and proxies:
-        return session.request(method, url, proxies=proxies, **kwargs)
+        return _call_with_hard_timeout(session, method, url, hard_timeout, proxies=proxies, **kwargs)
 
     try:
-        resp = session.request(method, url, **kwargs)
+        resp = _call_with_hard_timeout(session, method, url, hard_timeout, **kwargs)
         if resp.status_code not in (502, 503, 504):
             return resp
     except requests.RequestException:
@@ -57,7 +91,7 @@ def _request(session: requests.Session, method: str, url: str, **kwargs) -> requ
 
     logger.warning(f"Direct access to {url} failed, retrying via system proxy")
     _use_proxy = True
-    return session.request(method, url, proxies=proxies, **kwargs)
+    return _call_with_hard_timeout(session, method, url, hard_timeout, proxies=proxies, **kwargs)
 
 
 def load_sources(sources_file: Path) -> list[dict]:
