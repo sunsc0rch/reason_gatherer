@@ -7,11 +7,11 @@ Scrapes free VPN configs from GitHub repositories, filters them by TCP reachabil
 | File | Description |
 |---|---|
 | [**known_good.txt**](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/known_good.txt) | All verified configs ever collected — use as subscription URL |
-| [run_2026-08-03.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-08-03.txt) | Latest run |
-| [run_2026-07-29.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-07-29.txt) | Previous run |
+| [run_2026-08-07.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-08-07.txt) | Latest run |
+| [run_2026-08-03.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-08-03.txt) | Previous run |
+| [run_2026-07-29.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-07-29.txt) | Earlier run |
 | [run_2026-07-24.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-07-24.txt) | Earlier run |
 | [run_2026-07-21.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-07-21.txt) | Earlier run |
-| [run_2026-07-17.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-07-17.txt) | Earlier run |
 | [recheck_2026-08-07.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/recheck_2026-08-07.txt) | Latest recheck (configs re-verified from known_good) |
 
 Configs marked `+++` passed the Claude.com access check (unblocked from Russia). Configs marked `---` passed the speed test but Claude.com was blocked through them.
@@ -25,11 +25,11 @@ A separate collector scrapes and tunnel-tests AmneziaWG configs from community s
 | File | Description |
 |---|---|
 | [**known_good.txt**](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/known_good.txt) | All verified configs ever collected — use as subscription URL |
-| [run_2026-08-03.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-08-03.txt) | Latest run |
-| [run_2026-07-29.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-07-29.txt) | Previous run |
+| [run_2026-08-07.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-08-07.txt) | Latest run |
+| [run_2026-08-03.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-08-03.txt) | Previous run |
+| [run_2026-07-29.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-07-29.txt) | Earlier run |
 | [run_2026-07-24.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-07-24.txt) | Earlier run |
 | [run_2026-07-21.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-07-21.txt) | Earlier run |
-| [run_2026-07-17.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-07-17.txt) | Earlier run |
 | [recheck_2026-08-07.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/recheck_2026-08-07.txt) | Latest recheck (configs re-verified from known_good) |
 
 **Import:** Amnezia app → Add VPN → From file → `all_configs.zip`
