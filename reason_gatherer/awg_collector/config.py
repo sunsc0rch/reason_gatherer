@@ -21,6 +21,13 @@ SPEEDTEST_URLS = [
     "https://proof.ovh.net/files/1Mb.dat",
 ]
 
+# Geo check: reject configs whose tunnel exit resolves to one of these
+# countries (ISO 3166-1 alpha-2). Cloudflare WARP anycast routes to the
+# nearest edge to the *client*, so a WARP-sourced config can pass the
+# handshake/speed test yet still exit in the client's own country.
+GEO_CHECK_URL = "http://ip-api.com/json/?fields=countryCode"
+EXCLUDED_EXIT_COUNTRIES = {"RU"}
+
 PROXY_ENV_VARS = [
     "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY",
     "http_proxy", "https_proxy", "all_proxy",

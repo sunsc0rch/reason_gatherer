@@ -29,7 +29,7 @@ A separate collector scrapes and tunnel-tests AmneziaWG configs from community s
 
 **Import:** Amnezia app → Add VPN → From file → `all_configs.zip`
 
-Each config is real-tunnel-tested (handshake verified + speed ≥ 1 Mbit/s). The full pool of verified configs (`results_awg/known_good/`) contains all passing configs; the archive is rebuilt to include only the 50 fastest after each run.
+Each config is real-tunnel-tested (handshake verified + exit country outside Russia + speed ≥ 1 Mbit/s). The full pool of verified configs (`results_awg/known_good/`) contains all passing configs; the archive is rebuilt to include only the 50 fastest after each run.
 
 Sources: Telegram [@amnezia_wg](https://t.me/amnezia_wg), [@vpnconfigsgive](https://t.me/vpnconfigsgive), [Delta-Kronecker/WARP-Config](https://github.com/Delta-Kronecker/WARP-Config).
 

@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import socket
@@ -8,6 +9,7 @@ from pathlib import Path
 
 from awg_collector.config import (
     AWG_TEST_TIMEOUT, MIN_SPEED_MBPS, SPEEDTEST_URLS, PROXY_ENV_VARS, TCP_TIMEOUT,
+    GEO_CHECK_URL, EXCLUDED_EXIT_COUNTRIES,
 )
 
 import logging
@@ -52,6 +54,25 @@ def _inject_table_off(conf_text: str) -> str:
     if re.search(r"^\s*Table\s*=", conf_text, re.MULTILINE | re.IGNORECASE):
         return conf_text
     return re.sub(r"(\[Interface\])", r"\1\nTable = off", conf_text, count=1)
+
+
+def _exit_country(iface: str, timeout: int = 10) -> str | None:
+    """Return the ISO 3166-1 alpha-2 country the tunnel currently exits through.
+
+    Returns None on any lookup failure — the geo check fails open, since a
+    flaky geo-API response shouldn't sink an otherwise-good config.
+    """
+    try:
+        r = _run_sudo(
+            ["curl", "--max-time", str(timeout), "--interface", iface,
+             "-s", "--", GEO_CHECK_URL],
+            timeout=timeout + 5,
+        )
+        if r.returncode != 0 or not r.stdout.strip():
+            return None
+        return json.loads(r.stdout).get("countryCode")
+    except (subprocess.TimeoutExpired, ValueError):
+        return None
 
 
 def _handshake_age(iface: str) -> int | None:
@@ -110,6 +131,11 @@ def test_awg_tunnel(conf_text: str) -> float | None:
             time.sleep(1)
         else:
             logger.debug(f"No handshake on {iface}")
+            return None
+
+        country = _exit_country(iface)
+        if country in EXCLUDED_EXIT_COUNTRIES:
+            logger.debug(f"Rejected {iface}: exit country {country} is excluded")
             return None
 
         # Measure download speed: curl bound to the AWG interface

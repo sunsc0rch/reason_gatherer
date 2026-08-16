@@ -20,6 +20,7 @@ Amnezia 1.0.1 принимает **только `.zip`** (не `.vpn`, не `.co
 - `amneziawg-go` работает в **основном netns** (не изолированном — UDP не пройдёт)
 - `Table = off` в `[Interface]` предотвращает изменение маршрутов хоста
 - Handshake: `awg show iface latest-handshakes`, скорость: `curl --interface iface`
+- Гео-проверка выхода: `curl --interface iface http://ip-api.com/json/...`, конфиги с exit-страной из `EXCLUDED_EXIT_COUNTRIES` (config.py, по умолчанию `{"RU"}`) отбрасываются до замера скорости. Нужна, потому что WARP-конфиги (anycast) могут проходить handshake+speed, но выходить в той же стране, что и клиент — IP меняется, страна нет.
 - Требует `amneziawg-go` в PATH + NOPASSWD sudoers для `awg`, `awg-quick`, `ip`, `curl`
 
 ### Компиляция amneziawg-go
