@@ -58,6 +58,9 @@ update_readme() {
     fi
 
     # Replace everything between the table header and the next blank line.
+    # README.md has two "| File | Description |" tables (vpn_collector and
+    # AmneziaWG); count=1 touches only the first (vpn_collector's) so this
+    # script never clobbers the AWG section with vpn_collector's file list.
     python3 - "$README" "$table" <<'PYEOF'
 import sys, re
 path, table = sys.argv[1], sys.argv[2]
@@ -65,7 +68,7 @@ content = open(path).read()
 # Match the two-line table header + all subsequent | lines
 pattern = r'(\| File \| Description \|\n\|---\|---\|\n)(\|.*\n)+'
 replacement = r'\g<1>' + table.replace('\\n', '\n')
-new_content = re.sub(pattern, replacement, content)
+new_content = re.sub(pattern, replacement, content, count=1)
 open(path, 'w').write(new_content)
 PYEOF
 

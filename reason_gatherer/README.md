@@ -22,15 +22,10 @@ Configs marked `+++` passed the Claude.com access check (unblocked from Russia).
 
 A separate collector scrapes and tunnel-tests AmneziaWG configs from community sources and packages the fastest ones for direct import into the Amnezia app.
 
-| File | Description |
+| Path | Description |
 |---|---|
-| [**known_good.txt**](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/known_good.txt) | All verified configs ever collected — use as subscription URL |
-| [run_2026-08-14.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-08-14.txt) | Latest run |
-| [run_2026-08-07.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-08-07.txt) | Previous run |
-| [run_2026-08-03.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-08-03.txt) | Earlier run |
-| [run_2026-07-29.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-07-29.txt) | Earlier run |
-| [run_2026-07-24.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-07-24.txt) | Earlier run |
-| [recheck_2026-08-13.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/recheck_2026-08-13.txt) | Latest recheck (configs re-verified from known_good) |
+| [**results_awg/all_configs.zip**](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results_awg/all_configs.zip) | Import this into the Amnezia app — the 50 fastest verified configs, capped at 5 per /24 subnet |
+| `results_awg/known_good/*.conf` | Full pool of all currently-passing configs (one file per endpoint) |
 
 **Import:** Amnezia app → Add VPN → From file → `all_configs.zip`
 
