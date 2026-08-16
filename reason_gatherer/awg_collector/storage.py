@@ -3,7 +3,7 @@ import re
 import zipfile
 from pathlib import Path
 
-from awg_collector.config import RESULTS_AWG_DIR, KNOWN_GOOD_DIR, TOP_N_CONFIGS, MAX_PER_SUBNET
+from awg_collector.config import RESULTS_AWG_DIR, KNOWN_GOOD_DIR, ARCHIVE_DIR, TOP_N_CONFIGS, MAX_PER_SUBNET
 
 # AWG 2.x-only fields not supported by AmneziaWG 1.0.1
 _AWG2_FIELDS = re.compile(r"^\s*(S3|I1)\s*=.*\n?", re.MULTILINE | re.IGNORECASE)
@@ -43,9 +43,19 @@ def load_known_good() -> list[dict]:
 
 
 def remove_known_good(endpoint: str) -> None:
+    """Move a config out of known_good into ARCHIVE_DIR instead of deleting it.
+
+    Recheck can drop a config for reasons that say nothing about the config
+    itself (e.g. the new exit-country geo check rejecting WARP endpoints) —
+    keep the file around rather than losing it silently.
+    """
     host, _, port = endpoint.rpartition(":")
-    path = KNOWN_GOOD_DIR / f"{host}_{port}.conf"
-    path.unlink(missing_ok=True)
+    filename = f"{host}_{port}.conf"
+    path = KNOWN_GOOD_DIR / filename
+    if not path.exists():
+        return
+    ARCHIVE_DIR.mkdir(exist_ok=True)
+    path.replace(ARCHIVE_DIR / filename)
 
 
 def _subnet_key(endpoint: str) -> str:

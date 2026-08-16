@@ -41,6 +41,7 @@ GitHub raw URL может не работать без системного пр
 ```
 results_awg/
   known_good/      ← проверенные .conf файлы (без S3/I1)
+  archive/         ← конфиги, выбывшие из known_good при --recheck (не удаляются, а переезжают сюда)
   all_configs.zip  ← архив для импорта в Amnezia
   candidates.conf  ← все собранные кандидаты до тестирования
 ```

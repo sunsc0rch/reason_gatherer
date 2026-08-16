@@ -3,6 +3,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).parent.parent
 RESULTS_AWG_DIR = BASE_DIR / "results_awg"
 KNOWN_GOOD_DIR = RESULTS_AWG_DIR / "known_good"
+ARCHIVE_DIR = RESULTS_AWG_DIR / "archive"  # configs removed from known_good land here instead of being deleted
 LOGS_DIR = BASE_DIR / "logs"
 SOURCES_AWG_FILE = BASE_DIR / "sources_awg.json"
 
