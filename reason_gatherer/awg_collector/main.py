@@ -32,6 +32,9 @@ def _setup_logging() -> None:
             logging.StreamHandler(sys.stdout),
         ],
     )
+    # telethon's own INFO logs (per-chunk download progress, DC hops) are
+    # internal noise, not application events — drown out real warnings/errors.
+    logging.getLogger("telethon").setLevel(logging.WARNING)
 
 
 async def _tcp_filter(configs: list[dict]) -> list[dict]:

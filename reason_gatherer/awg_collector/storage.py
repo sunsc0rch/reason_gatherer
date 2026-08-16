@@ -3,7 +3,7 @@ import re
 import zipfile
 from pathlib import Path
 
-from awg_collector.config import RESULTS_AWG_DIR, KNOWN_GOOD_DIR, TOP_N_CONFIGS
+from awg_collector.config import RESULTS_AWG_DIR, KNOWN_GOOD_DIR, TOP_N_CONFIGS, MAX_PER_SUBNET
 
 # AWG 2.x-only fields not supported by AmneziaWG 1.0.1
 _AWG2_FIELDS = re.compile(r"^\s*(S3|I1)\s*=.*\n?", re.MULTILINE | re.IGNORECASE)
@@ -48,18 +48,47 @@ def remove_known_good(endpoint: str) -> None:
     path.unlink(missing_ok=True)
 
 
+def _subnet_key(endpoint: str) -> str:
+    """/24 for IPv4 endpoints, or the hostname itself for domain endpoints."""
+    host = endpoint.rpartition(":")[0]
+    parts = host.split(".")
+    if len(parts) == 4 and all(p.isdigit() for p in parts):
+        return ".".join(parts[:3])
+    return host
+
+
+def _cap_per_subnet(configs: list[dict], limit: int) -> list[dict]:
+    """Keep configs in order, dropping any past `limit` occurrences of the same /24.
+
+    Without this, a single bulk source whose IPs cluster in one subnet (e.g. a
+    WARP relay pool) can crowd out every other source once results are sorted
+    by speed alone.
+    """
+    counts: dict[str, int] = {}
+    kept = []
+    for cfg in configs:
+        key = _subnet_key(cfg["endpoint"])
+        if counts.get(key, 0) >= limit:
+            continue
+        counts[key] = counts.get(key, 0) + 1
+        kept.append(cfg)
+    return kept
+
+
 def build_vpn_archive(meta: dict | None = None) -> Path:
     """Build all_configs.zip with top TOP_N_CONFIGS entries sorted by speed.
 
-    If meta is provided, configs are sorted by meta[endpoint]['speed'] descending
-    and only the fastest TOP_N_CONFIGS are included. Without meta, all known_good
-    configs are included unsorted.
+    If meta is provided, configs are sorted by meta[endpoint]['speed'] descending,
+    capped to MAX_PER_SUBNET per /24 so one bulk source can't crowd out the rest,
+    and only the fastest TOP_N_CONFIGS (after capping) are included. Without meta,
+    all known_good configs are included unsorted.
     """
     _ensure_dirs()
     archive_path = RESULTS_AWG_DIR / "all_configs.zip"
     configs = load_known_good()
     if meta is not None:
         configs.sort(key=lambda c: meta.get(c["endpoint"], {}).get("speed", 0), reverse=True)
+        configs = _cap_per_subnet(configs, MAX_PER_SUBNET)
         configs = configs[:TOP_N_CONFIGS]
     with zipfile.ZipFile(archive_path, "w", zipfile.ZIP_DEFLATED) as zf:
         for cfg in configs:

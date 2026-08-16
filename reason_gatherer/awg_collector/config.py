@@ -13,6 +13,7 @@ AWG_TEST_TIMEOUT = 30          # секунд на один конфиг
 AWG_RECHECK_RETRIES = 2
 MIN_SPEED_MBPS = 1.0
 TOP_N_CONFIGS = 50             # сколько fastest конфигов сохранять в known_good
+MAX_PER_SUBNET = 5             # максимум конфигов из одной /24 в итоговом архиве
 
 SPEEDTEST_URLS = [
     "http://cachefly.cachefly.net/1mb.test",

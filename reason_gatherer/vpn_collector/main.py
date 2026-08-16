@@ -34,6 +34,7 @@ def _setup_logging() -> None:
             logging.StreamHandler(sys.stdout),
         ],
     )
+    logging.getLogger("telethon").setLevel(logging.WARNING)
 
 
 def cmd_collect(sample: int | None = None) -> None:
