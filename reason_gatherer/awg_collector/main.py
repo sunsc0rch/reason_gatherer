@@ -17,7 +17,7 @@ from awg_collector.storage import (
     load_config_meta, save_config_meta, update_meta_entry,
     save_candidates,
 )
-from awg_collector.tester import tcp_check, test_awg_tunnel, passes_speed
+from awg_collector.tester import tcp_check, test_awg_tunnel, passes_speed, ExitCountryRejected
 
 _log = logging.getLogger(__name__)
 
@@ -77,6 +77,8 @@ def _tunnel_test_batch(configs: list[dict]) -> list[dict]:
                     _log.info(f"PASS {cfg['endpoint']} {speed/125000:.1f} Mbps")
                 else:
                     _log.info(f"FAIL {cfg['endpoint']}")
+            except ExitCountryRejected as e:
+                _log.info(f"FAIL {cfg['endpoint']} (exit country {e.country})")
             except Exception as e:
                 _log.warning(f"Error testing {cfg['endpoint']}: {e}")
     return passing
@@ -124,7 +126,11 @@ def cmd_recheck() -> None:
         ep = cfg["endpoint"]
         best_speed = None
         for attempt in range(AWG_RECHECK_RETRIES + 1):
-            speed = test_awg_tunnel(cfg["text"])
+            try:
+                speed = test_awg_tunnel(cfg["text"])
+            except ExitCountryRejected as e:
+                _log.info(f"FAIL {ep} (exit country {e.country}, not retrying)")
+                break
             if speed is not None and passes_speed(speed):
                 _log.info(f"PASS {ep} {speed/125000:.1f} Mbps")
                 best_speed = speed

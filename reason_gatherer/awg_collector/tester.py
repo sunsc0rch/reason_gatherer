@@ -16,6 +16,14 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+class ExitCountryRejected(Exception):
+    """Tunnel came up fine but exits in an excluded country — retrying won't change that."""
+
+    def __init__(self, country: str | None) -> None:
+        self.country = country
+        super().__init__(f"exit country {country} is excluded")
+
+
 def _clean_env() -> dict:
     env = os.environ.copy()
     for var in PROXY_ENV_VARS:
@@ -136,7 +144,7 @@ def test_awg_tunnel(conf_text: str) -> float | None:
         country = _exit_country(iface)
         if country in EXCLUDED_EXIT_COUNTRIES:
             logger.debug(f"Rejected {iface}: exit country {country} is excluded")
-            return None
+            raise ExitCountryRejected(country)
 
         # Measure download speed: curl bound to the AWG interface
         for url in SPEEDTEST_URLS:
