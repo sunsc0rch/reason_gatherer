@@ -1,0 +1,334 @@
+vless://e0454af2-6fe9-4983-a55d-05e1da202602@151.101.56.7:443?path=/&security=tls&encryption=none&insecure=0&host=italyan.global.ssl.fastly.net.&type=ws&allowInsecure=0&sni=ssl.fastly.com#---[1596]🎈 🇮🇹 ITA 🎈 #2fe13e
+trojan://FH72359861@gentle-platypus.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=gentle-platypus.rooster465.autos#+++🇺🇸 US TROJAN 6712
+trojan://FH72359861@gentle-platypus.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome&sni=gentle-platypus.rooster465.autos#+++🇺🇸 US TROJAN 480
+trojan://PQ05174892@3.124.187.220:443?type=tcp&security=none&encryption=none&sni=rapid-firefly.rooster465.autos#+++🇩🇪 DE TROJAN 1424
+trojan://PQ05174892@3.120.37.181:443?type=tcp&security=none&encryption=none&sni=many-cricket.rooster465.autos#+++🇩🇪 DE TROJAN 1360
+trojan://PQ05174892@54.93.54.137:443?type=tcp&security=none&encryption=none&sni=informed-alpaca.rooster465.autos#+++🇩🇪 DE TROJAN 2181
+trojan://PQ05174892@35.160.249.189:443?type=tcp&security=none&encryption=none&sni=absolute-teal.rooster465.autos#+++🇺🇸 US TROJAN 7495
+trojan://PQ05174892@52.77.218.157:443?type=tcp&security=none&encryption=none&sni=simple-sunbeam.rooster465.autos#+++🇸🇬 SG TROJAN 7648
+vless://03707fb7-0990-440f-88f6-b0e0f7242a38@170.114.45.239:443?type=ws&security=tls&fp=firefox&sni=de-new-1.ariyuz.org#+++🇺🇸 US VLESS 6461
+vless://03707fb7-0990-440f-88f6-b0e0f7242a38@170.114.45.239:443?type=ws&security=tls&fp=firefox&sni=de-new-1.ariyuz.org#+++🇺🇸 US VLESS 7153
+vless://03707fb7-0990-440f-88f6-b0e0f7242a38@104.16.63.25:443?type=ws&security=tls&fp=chrome&sni=germany-2.ariyuz.org#+++🇩🇪 DE VLESS 3492
+vless://1078d418-b4e0-4668-9018-dc90c2042d61@162.251.82.131:443?type=ws&security=tls&fp=firefox&sni=workspace.evan00.dpdns.org#+++🇺🇸 US VLESS 1945
+vless://47e144de-9fb2-47da-9a1b-c8f78df22e99@194.87.133.25:443?type=tcp&security=reality&encryption=none&fp=firefox&pbk=i6uqYKE5251RNqvVQofY5wUxkTokzxYz6m5g2ke9iT0&sid=f8c21d6b3a9e7054&sni=github.com#+++🇷🇺 RU VLESS 3847
+vless://4480161e-2c59-4d37-8736-675c9af32bf1@72.56.92.177:40443?type=raw&security=reality&flow=xtls-rprx-vision&fp=chrome&pbk=fWzCKXwvMXaacsl1DdFb1vKQ9l9cTK1G7udqmaYHL0Y&sid=01d1bf2d4755d40c&sni=deepl.com#---🇳🇱 NL VLESS 934
+vless://4480161e-2c59-4d37-8736-675c9af32bf1@72.56.92.177:40443?type=tcp&security=reality&encryption=none&flow=xtls-rprx-vision&fp=firefox&pbk=fWzCKXwvMXaacsl1DdFb1vKQ9l9cTK1G7udqmaYHL0Y&sid=01d1bf2d4755d40c&sni=deepl.com#---🇳🇱 NL VLESS 8138
+vless://4bf5a71c-d726-4585-b095-7396675706d5@72.56.81.165:40443?type=raw&security=reality&flow=xtls-rprx-vision&fp=chrome&pbk=D_ks4Yyk4-osnWBxCFvd0_UEgohUXvR2zJoWQg1CACU&sid=c84f&sni=deepl.com#---🇳🇱 NL VLESS 7020
+vless://4bf5a71c-d726-4585-b095-7396675706d5@72.56.81.165:40443?type=tcp&security=reality&encryption=none&flow=xtls-rprx-vision&fp=qq&pbk=D_ks4Yyk4-osnWBxCFvd0_UEgohUXvR2zJoWQg1CACU&sid=c84f&sni=deepl.com&allow_insecure=1#---🇳🇱 NL VLESS 1373
+vless://598b823c-d3fc-4013-aae5-837f10080f7a@72.56.36.96:40443?type=raw&security=reality&flow=xtls-rprx-vision&fp=chrome&pbk=cZF84xUCciKRXxTA39vNnh0U8CjUZiUSjLzuNTMOzV8&sid=33e48a03db900ff3&sni=deepl.com#+++🇷🇺 RU VLESS 344
+vless://598b823c-d3fc-4013-aae5-837f10080f7a@72.56.36.96:40443?type=raw&security=reality&flow=xtls-rprx-vision&fp=qq&pbk=cZF84xUCciKRXxTA39vNnh0U8CjUZiUSjLzuNTMOzV8&sid=33e48a03db900ff3&sni=deepl.com#+++🇷🇺 RU VLESS 5293
+vless://598b823c-d3fc-4013-aae5-837f10080f7a@72.56.36.96:40443?type=tcp&security=reality&encryption=none&flow=xtls-rprx-vision&fp=firefox&pbk=cZF84xUCciKRXxTA39vNnh0U8CjUZiUSjLzuNTMOzV8&sid=33e48a03db900ff3&sni=deepl.com#+++🇷🇺 RU VLESS 9146
+vless://598b823c-d3fc-4013-aae5-837f10080f7a@72.56.36.96:40443?type=tcp&security=reality&encryption=none&flow=xtls-rprx-vision&fp=qq&pbk=cZF84xUCciKRXxTA39vNnh0U8CjUZiUSjLzuNTMOzV8&sid=33e48a03db900ff3&sni=deepl.com&packetEncoding=none#+++🇷🇺 RU VLESS 8741
+vless://5e3f974b-06fc-4555-907a-6681391b7c17@186.246.19.79:40443?type=tcp&security=reality&encryption=none&flow=xtls-rprx-vision&fp=firefox&pbk=oc9uweln_cqyaJnlRMnhhhKrGNP7RrYOsuYtaIOIQDE&sid=2bc0&sni=deepl.com#+++🇺🇸 US VLESS 7130
+vless://6b408e62-c5d5-45e1-ae3a-4c9833d46d82@217.217.254.126:2053?type=raw&security=reality&fp=chrome&pbk=T4CMxxAJiCcrGk2r87kMkDcvmfNs3nL-gKleaE1wTHQ&sid=fb7ebc9996caf9ac&sni=www.cloudflare.com#+++🇸🇬 SG VLESS 1009
+vless://6b408e62-c5d5-45e1-ae3a-4c9833d46d82@217.217.254.126:2053?type=tcp&security=reality&encryption=none&fp=firefox&pbk=T4CMxxAJiCcrGk2r87kMkDcvmfNs3nL-gKleaE1wTHQ&sid=fb7ebc9996caf9ac&sni=www.cloudflare.com#+++🇸🇬 SG VLESS 1154
+vless://7b188eea-b08f-42c2-bac7-d3b0e74218b8@147.182.212.232:56565?type=raw&security=reality&flow=xtls-rprx-vision&fp=chrome&pbk=Td03Ae-cuYLq4xg7MSps58c_yRUcbbwtZLXm0ywabjY&sni=www.paypal.com#+++🇺🇸 US VLESS 5596
+vless://7b188eea-b08f-42c2-bac7-d3b0e74218b8@147.182.212.232:56565?type=raw&security=reality&flow=xtls-rprx-vision&fp=firefox&pbk=Td03Ae-cuYLq4xg7MSps58c_yRUcbbwtZLXm0ywabjY&sni=www.paypal.com#+++🇺🇸 US VLESS 1258
+vless://7b188eea-b08f-42c2-bac7-d3b0e74218b8@147.182.212.232:56565?type=tcp&security=reality&encryption=none&flow=xtls-rprx-vision&fp=chrome&pbk=Td03Ae-cuYLq4xg7MSps58c_yRUcbbwtZLXm0ywabjY&sni=www.paypal.com&packetEncoding=none#+++🇺🇸 US VLESS 1564
+vless://7b188eea-b08f-42c2-bac7-d3b0e74218b8@147.182.212.232:56565?type=tcp&security=reality&encryption=none&flow=xtls-rprx-vision&fp=firefox&pbk=Td03Ae-cuYLq4xg7MSps58c_yRUcbbwtZLXm0ywabjY&sni=www.paypal.com#+++🇺🇸 US VLESS 1823
+vless://8eeda009-fe56-442f-b3b1-b6bbf65fea1e@195.123.217.26:443?type=tcp&security=reality&encryption=none&flow=xtls-rprx-vision&fp=firefox&pbk=JLTetzK1Axw8MhHYk_GYfA0M5-OjZ9Frd1hR2hCkxno&sid=6eda1031a2d1a3fa&sni=www.cloudflare.com#---🇳🇱 NL VLESS 4612
+vless://9aff0732-7ce4-4b34-ba20-e67c6df64fdd@185.221.163.211:443?type=tcp&security=reality&encryption=none&flow=xtls-rprx-vision&fp=firefox&pbk=lQ8pnlOU0kqS77TA7Fftl8nSzktXLzFpOLGqCZEAhjg&sid=aaec521b22bbe6cb&sni=fin1.panel11.ru#+++🇫🇮 FI VLESS 6119
+vless://XpnTeam-7@199.232.78.160:443?path=%2F&security=tls&alpn=http%2F1.1&encryption=none&host=Appxdn.global.ssl.fastly.net&fp=chrome&type=ws&sni=ssl.fastly.com&allowInsecure=0&insecure=0#+++🇩🇪 DE VLESS 311
+vless://a71c8954-66a8-4321-bedb-2336230d81ce@130.107.73.148:41373?type=raw&security=reality&flow=xtls-rprx-vision&fp=chrome&pbk=m0GsZOAwvAJEaqh9aH6qfOmBKo0KW0jY_tJEC6KaDEU&sid=0e&sni=google.com#+++🇨🇦 CA VLESS 4527
+vless://a71c8954-66a8-4321-bedb-2336230d81ce@130.107.73.148:41373?type=tcp&security=reality&encryption=none&flow=xtls-rprx-vision&fp=firefox&pbk=m0GsZOAwvAJEaqh9aH6qfOmBKo0KW0jY_tJEC6KaDEU&sid=0e&sni=google.com#+++🇨🇦 CA VLESS 3496
+vless://b222ebc7-569c-45ca-a0e4-756f171b247b@92.63.99.228:4353?type=tcp&security=reality&encryption=none&flow=xtls-rprx-vision&fp=firefox&pbk=YXVnk7FdM6IXOlFqisWurmtfmoftXLqqsrJ-JqqP6Rc&sni=tradingview.com#+++🇷🇺 RU VLESS 9493
+vless://b1ed5cfa-7ba2-49fb-9d44-3d2a4aa2aee3@82.202.156.57:443?type=raw&security=reality&fp=chrome&pbk=rLZ958cX7AMasTIeMo5amhntDinsuY3P5zwnc1Pebhw&sid=e736&sni=www.google.com#+++🇷🇺 RU VLESS 1478
+vless://b85b1e90-b5ed-0002-b433-bf9d2eca0e42@45.12.5.171:443?type=tcp&security=reality&encryption=none&flow=xtls-rprx-vision&fp=firefox&pbk=jwT3lcIzJQMjzBKRNsmyRGrgaa1qNfE7pQF_nAKu0GA&sid=a73cf719b624&sni=ru9.aimodelhub.top#---🇷🇺 RU VLESS 6195
+vless://cd5cf6e7-7ce5-42c9-9316-68210fa72a32@13.193.205.133:27407?type=raw&security=reality&fp=chrome&pbk=SajK6LzHBkkFlEXjIwseyqbpezgPiop5ZnSToou3G04&sid=e6ac18b63f23&sni=bgcpartners.com#+++🇯🇵 JP VLESS 4926
+vless://cd5cf6e7-7ce5-42c9-9316-68210fa72a32@13.193.205.133:27407?type=tcp&security=reality&encryption=none&fp=chrome&pbk=SajK6LzHBkkFlEXjIwseyqbpezgPiop5ZnSToou3G04&sid=e6ac18b63f23&sni=bgcpartners.com&packetEncoding=none#+++🇯🇵 JP VLESS 4488
+vless://cd5cf6e7-7ce5-42c9-9316-68210fa72a32@13.193.205.133:27407?type=tcp&security=reality&encryption=none&fp=firefox&pbk=SajK6LzHBkkFlEXjIwseyqbpezgPiop5ZnSToou3G04&sid=e6ac18b63f23&sni=bgcpartners.com#+++🇯🇵 JP VLESS 5426
+vless://d7fc372d-c057-43ce-8070-9b96abbc60f3@5.181.21.234:443?type=raw&security=reality&flow=xtls-rprx-vision&fp=chrome&pbk=JaP4bhvIMW-l7T0_RkLra59DeBYI6W9XemKa8MyRPSY&sid=6c6082a2223c1d03&sni=fl4.raketa-balance.com#+++🇫🇮 FI VLESS 9481
+vless://d7fc372d-c057-43ce-8070-9b96abbc60f3@5.181.21.234:443?type=tcp&security=reality&encryption=none&flow=xtls-rprx-vision&fp=firefox&pbk=JaP4bhvIMW-l7T0_RkLra59DeBYI6W9XemKa8MyRPSY&sid=6c6082a2223c1d03&sni=fl4.raketa-balance.com#+++🇫🇮 FI VLESS 4480
+vless://d8dd94fd-540e-461d-b5d4-acebef02c22a@64.23.143.23:34045?type=raw&security=reality&fp=chrome&pbk=cDaDzPr3PlS3NM8lreHZbdo-Mhqz8vMBzMSkHXhGIUA&sid=e8ab71d0&sni=visit-this-invitation-link-to-join-tg-enkelte-notif.ekt.me#+++🇺🇸 US VLESS 5408
+vless://d8dd94fd-540e-461d-b5d4-acebef02c22a@64.23.143.23:34045?type=raw&security=reality&fp=chrome&pbk=cDaDzPr3PlS3NM8lreHZbdo-Mhqz8vMBzMSkHXhGIUA&sid=e8ab71d0&sni=visit-this-invitation-link-to-join-tg-enkelte-notif.ekt.me#+++🇺🇸 US VLESS 967
+vless://d8dd94fd-540e-461d-b5d4-acebef02c22a@64.23.143.23:34045?type=tcp&security=reality&encryption=none&fp=chrome&pbk=cDaDzPr3PlS3NM8lreHZbdo-Mhqz8vMBzMSkHXhGIUA&sid=e8ab71d0&sni=visit-this-invitation-link-to-join-tg-enkelte-notif.ekt.me&packetEncoding=none#+++🇺🇸 US VLESS 3410
+vless://d8dd94fd-540e-461d-b5d4-acebef02c22a@64.23.143.23:34045?type=tcp&security=reality&encryption=none&fp=firefox&pbk=cDaDzPr3PlS3NM8lreHZbdo-Mhqz8vMBzMSkHXhGIUA&sid=e8ab71d0&sni=visit-this-invitation-link-to-join-tg-enkelte-notif.ekt.me#+++🇺🇸 US VLESS 3228
+vless://da4747a6-be0d-4c1b-90f4-d82ec3012be2@8.47.69.6:2053?type=ws&security=tls&fp=firefox&sni=music1000.melobitmusic1.ir#+++🇺🇸 US VLESS 1452
+vless://e01fcb68-3112-49da-b85d-dffb799cfc9b@156.246.88.125:26518?type=raw&security=reality&flow=xtls-rprx-vision&fp=firefox&pbk=1fa6iCY7vhoQyKu91FeaK04FN-mr1qeHnrtdyLZ79mk&sid=6caead99&sni=github.com#+++🇯🇵 JP VLESS 6483
+vless://e01fcb68-3112-49da-b85d-dffb799cfc9b@156.246.88.125:26518?type=tcp&security=reality&encryption=none&flow=xtls-rprx-vision&fp=firefox&pbk=1fa6iCY7vhoQyKu91FeaK04FN-mr1qeHnrtdyLZ79mk&sid=6caead99&sni=github.com#+++🇯🇵 JP VLESS 1607
+vless://e8b1500b-e9e8-5492-8312-f4eadf7d0767@162.19.10.99:443?allowInsecure=1&type=tcp&security=tls&encryption=none&flow=xtls-rprx-vision&fp=chrome&sni=nasnet-162191099-direct.mbghalibaf.com#+++🇫🇷 FR VLESS 530
+vless://e8b1500b-e9e8-5492-8312-f4eadf7d0767@162.19.10.99:443?type=tcp&security=tls&encryption=none&flow=xtls-rprx-vision&fp=chrome&sni=nasnet-162191099-direct.mbghalibaf.com&packetEncoding=none#+++🇫🇷 FR VLESS 8330
+vless://e8b1500b-e9e8-5492-8312-f4eadf7d0767@162.19.10.99:443?type=tcp&security=tls&encryption=none&flow=xtls-rprx-vision&fp=firefox&sni=nasnet-162191099-direct.mbghalibaf.com#+++🇫🇷 FR VLESS 8422
+trojan://AE62539071@elegant-marten.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome&sni=elegant-marten.rooster465.autos#+++🏳️ UNKNOWN TROJAN 588
+trojan://AE62539071@elegant-marten.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=elegant-marten.rooster465.autos#+++🏳️ UNKNOWN TROJAN 4972
+trojan://AE62539071@one-quail.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=one-quail.rooster465.autos#+++🏳️ UNKNOWN TROJAN 1144
+trojan://AE62539071@one-quail.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome#+++🏳️ UNKNOWN TROJAN 1064
+trojan://AE62539071@one-quail.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome&sni=one-quail.rooster465.autos&peer=one-quail.rooster465.autos#+++🏳️ UNKNOWN TROJAN 1213
+trojan://AE62539071@rested-osprey.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=rested-osprey.rooster465.autos#+++🏳️ UNKNOWN TROJAN 2263
+trojan://AE62539071@sacred-anemone.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome&sni=sacred-anemone.rooster465.autos#+++🏳️ UNKNOWN TROJAN 4243
+trojan://AE62539071@smooth-hornet.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=smooth-hornet.rooster465.autos#+++🏳️ UNKNOWN TROJAN 4652
+trojan://AE62539071@rich-mule.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=rich-mule.rooster465.autos#+++🏳️ UNKNOWN TROJAN 2384
+trojan://FH72359861@absolute-bobcat.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome&sni=absolute-bobcat.rooster465.autos#+++🏳️ UNKNOWN TROJAN 1457
+trojan://FH72359861@absolute-bobcat.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome#+++🏳️ UNKNOWN TROJAN 1054
+trojan://FH72359861@actual-chicken.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=actual-chicken.rooster465.autos#+++🏳️ UNKNOWN TROJAN 4516
+trojan://FH72359861@adapting-giraffe.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome&sni=adapting-giraffe.rooster465.autos#+++🏳️ UNKNOWN TROJAN 6528
+trojan://FH72359861@adapting-giraffe.rooster465.autos:443?allowInsecure=0&type=tcp&security=none&encryption=none&sni=adapting-giraffe.rooster465.autos#+++🏳️ UNKNOWN TROJAN 3673
+trojan://FH72359861@adapting-giraffe.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome#+++🏳️ UNKNOWN TROJAN 7628
+trojan://FH72359861@alert-redfish.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=alert-redfish.rooster465.autos#+++🏳️ UNKNOWN TROJAN 7317
+trojan://FH72359861@brave-cattle.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=brave-cattle.rooster465.autos#+++🏳️ UNKNOWN TROJAN 4472
+trojan://FH72359861@brief-hare.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=brief-hare.rooster465.autos#+++🏳️ UNKNOWN TROJAN 4325
+trojan://FH72359861@casual-stallion.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=casual-stallion.rooster465.autos#+++🏳️ UNKNOWN TROJAN 1309
+trojan://FH72359861@brief-hare.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome&sni=brief-hare.rooster465.autos#+++🏳️ UNKNOWN TROJAN 1077
+trojan://FH72359861@bright-quagga.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=bright-quagga.rooster465.autos#+++🏳️ UNKNOWN TROJAN 4003
+trojan://FH72359861@brief-hare.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome#+++🏳️ UNKNOWN TROJAN 5119
+trojan://FH72359861@bright-quagga.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome#+++🏳️ UNKNOWN TROJAN 6165
+trojan://FH72359861@classic-pug.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=classic-pug.rooster465.autos#+++🏳️ UNKNOWN TROJAN 6601
+trojan://FH72359861@darling-mongrel.rooster465.autos:443?allowInsecure=1&type=tcp&security=none&encryption=none#+++🏳️ UNKNOWN TROJAN 4162
+trojan://FH72359861@casual-stallion.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome#+++🏳️ UNKNOWN TROJAN 7001
+trojan://FH72359861@comic-poodle.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=comic-poodle.rooster465.autos#+++🏳️ UNKNOWN TROJAN 7957
+trojan://FH72359861@darling-mongrel.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=darling-mongrel.rooster465.autos#+++🏳️ UNKNOWN TROJAN 4461
+trojan://FH72359861@darling-mongrel.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome&sni=darling-mongrel.rooster465.autos#+++🏳️ UNKNOWN TROJAN 9318
+trojan://FH72359861@classic-pug.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome#+++🏳️ UNKNOWN TROJAN 3011
+trojan://FH72359861@bright-quagga.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome&sni=bright-quagga.rooster465.autos#+++🏳️ UNKNOWN TROJAN 4715
+trojan://FH72359861@engaging-toucan.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=engaging-toucan.rooster465.autos#+++🏳️ UNKNOWN TROJAN 522
+trojan://FH72359861@engaging-toucan.rooster465.autos:443?type=tcp&security=none&encryption=none#+++🏳️ UNKNOWN TROJAN 6070
+trojan://FH72359861@epic-iguana.rooster465.autos:443?type=tcp&security=none&encryption=none#+++🏳️ UNKNOWN TROJAN 2636
+trojan://FH72359861@epic-iguana.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=epic-iguana.rooster465.autos#+++🏳️ UNKNOWN TROJAN 7341
+trojan://FH72359861@classic-pug.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome&sni=classic-pug.rooster465.autos#+++🏳️ UNKNOWN TROJAN 5900
+trojan://FH72359861@casual-stallion.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome&sni=casual-stallion.rooster465.autos#+++🏳️ UNKNOWN TROJAN 8220
+trojan://FH72359861@comic-poodle.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome#+++🏳️ UNKNOWN TROJAN 6136
+trojan://FH72359861@devoted-zebra.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome#+++🏳️ UNKNOWN TROJAN 4229
+trojan://FH72359861@devoted-zebra.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome&sni=devoted-zebra.rooster465.autos#+++🏳️ UNKNOWN TROJAN 1178
+trojan://FH72359861@endless-kiwi.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=endless-kiwi.rooster465.autos#+++🏳️ UNKNOWN TROJAN 1159
+trojan://FH72359861@endless-kiwi.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome#+++🏳️ UNKNOWN TROJAN 458
+trojan://FH72359861@equal-labrador.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome&sni=equal-labrador.rooster465.autos#+++🏳️ UNKNOWN TROJAN 7371
+trojan://FH72359861@endless-kiwi.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome&sni=endless-kiwi.rooster465.autos#+++🏳️ UNKNOWN TROJAN 3744
+trojan://FH72359861@equal-labrador.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome#+++🏳️ UNKNOWN TROJAN 8309
+trojan://FH72359861@exciting-turtle.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=exciting-turtle.rooster465.autos#+++🏳️ UNKNOWN TROJAN 767
+trojan://FH72359861@fit-marten.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=fit-marten.rooster465.autos#+++🏳️ UNKNOWN TROJAN 854
+trojan://FH72359861@flying-swift.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=flying-swift.rooster465.autos#+++🏳️ UNKNOWN TROJAN 6336
+trojan://FH72359861@flying-swift.rooster465.autos:443?allowInsecure=0&type=tcp&security=none&encryption=none&sni=flying-swift.rooster465.autos#+++🏳️ UNKNOWN TROJAN 4145
+trojan://FH72359861@flexible-pony.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=flexible-pony.rooster465.autos#+++🏳️ UNKNOWN TROJAN 2676
+trojan://FH72359861@flexible-pony.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome#+++🏳️ UNKNOWN TROJAN 3470
+trojan://FH72359861@funny-squid.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome#+++🏳️ UNKNOWN TROJAN 7582
+trojan://FH72359861@funny-squid.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=funny-squid.rooster465.autos#+++🏳️ UNKNOWN TROJAN 8815
+trojan://FH72359861@flying-swift.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome#+++🏳️ UNKNOWN TROJAN 8183
+trojan://FH72359861@funny-hawk.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=funny-hawk.rooster465.autos#+++🏳️ UNKNOWN TROJAN 4401
+trojan://FH72359861@helping-shark.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=helping-shark.rooster465.autos#+++🏳️ UNKNOWN TROJAN 8462
+trojan://FH72359861@hopeful-burro.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=hopeful-burro.rooster465.autos#+++🏳️ UNKNOWN TROJAN 9026
+trojan://FH72359861@helping-shark.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome#+++🏳️ UNKNOWN TROJAN 3104
+trojan://FH72359861@learning-ladybug.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=learning-ladybug.rooster465.autos#+++🏳️ UNKNOWN TROJAN 8678
+trojan://FH72359861@internal-peacock.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome#+++🏳️ UNKNOWN TROJAN 4163
+trojan://FH72359861@helping-shark.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome&sni=helping-shark.rooster465.autos#+++🏳️ UNKNOWN TROJAN 5443
+trojan://FH72359861@included-hedgehog.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=included-hedgehog.rooster465.autos#+++🏳️ UNKNOWN TROJAN 2084
+trojan://FH72359861@living-hagfish.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=living-hagfish.rooster465.autos#+++🏳️ UNKNOWN TROJAN 6885
+trojan://FH72359861@living-hagfish.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome#+++🏳️ UNKNOWN TROJAN 4241
+trojan://FH72359861@loyal-molly.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome#+++🏳️ UNKNOWN TROJAN 4767
+trojan://FH72359861@internal-peacock.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome&sni=internal-peacock.rooster465.autos#+++🏳️ UNKNOWN TROJAN 5424
+trojan://FH72359861@living-hagfish.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome&sni=living-hagfish.rooster465.autos#+++🏳️ UNKNOWN TROJAN 1508
+trojan://FH72359861@loyal-molly.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=loyal-molly.rooster465.autos#+++🏳️ UNKNOWN TROJAN 3845
+trojan://FH72359861@loyal-molly.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome&sni=loyal-molly.rooster465.autos#+++🏳️ UNKNOWN TROJAN 1224
+trojan://FH72359861@magical-prawn.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=magical-prawn.rooster465.autos#+++🏳️ UNKNOWN TROJAN 5932
+trojan://FH72359861@magical-prawn.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome#+++🏳️ UNKNOWN TROJAN 7194
+trojan://FH72359861@massive-ocelot.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=massive-ocelot.rooster465.autos#+++🏳️ UNKNOWN TROJAN 4876
+trojan://FH72359861@outgoing-lynx.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=outgoing-lynx.rooster465.autos#+++🏳️ UNKNOWN TROJAN 3378
+trojan://FH72359861@moral-basilisk.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=moral-basilisk.rooster465.autos#+++🏳️ UNKNOWN TROJAN 4847
+trojan://FH72359861@one-dove.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=one-dove.rooster465.autos#+++🏳️ UNKNOWN TROJAN 8407
+trojan://FH72359861@massive-ocelot.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome#+++🏳️ UNKNOWN TROJAN 8189
+trojan://FH72359861@one-dove.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome#+++🏳️ UNKNOWN TROJAN 5101
+trojan://FH72359861@pleased-sawfly.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=pleased-sawfly.rooster465.autos#+++🏳️ UNKNOWN TROJAN 6142
+trojan://FH72359861@sacred-shepherd.rooster465.autos:443?type=tcp&security=none&encryption=none#+++🏳️ UNKNOWN TROJAN 3058
+trojan://FH72359861@sacred-shepherd.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome&sni=sacred-shepherd.rooster465.autos#+++🏳️ UNKNOWN TROJAN 1556
+trojan://FH72359861@stable-racer.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=stable-racer.rooster465.autos#+++🏳️ UNKNOWN TROJAN 1513
+trojan://FH72359861@star-bluejay.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=star-bluejay.rooster465.autos#+++🏳️ UNKNOWN TROJAN 5427
+trojan://FH72359861@star-bluejay.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome#+++🏳️ UNKNOWN TROJAN 4810
+trojan://FH72359861@star-cheetah.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome#+++🏳️ UNKNOWN TROJAN 82
+trojan://FH72359861@steady-lemming.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=steady-lemming.rooster465.autos#+++🏳️ UNKNOWN TROJAN 7406
+trojan://FH72359861@star-cheetah.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=star-cheetah.rooster465.autos#+++🏳️ UNKNOWN TROJAN 452
+trojan://FH72359861@steady-prawn.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=steady-prawn.rooster465.autos#+++🏳️ UNKNOWN TROJAN 7792
+trojan://FH72359861@summary-firefly.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome#+++🏳️ UNKNOWN TROJAN 1130
+trojan://FH72359861@summary-firefly.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=summary-firefly.rooster465.autos#+++🏳️ UNKNOWN TROJAN 769
+trojan://FH72359861@summary-lemming.rooster465.autos:443?type=tcp&security=none&encryption=none#+++🏳️ UNKNOWN TROJAN 4465
+trojan://FH72359861@summary-lemming.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome&sni=summary-lemming.rooster465.autos#+++🏳️ UNKNOWN TROJAN 379
+trojan://FH72359861@steady-prawn.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome&sni=steady-prawn.rooster465.autos#+++🏳️ UNKNOWN TROJAN 7818
+trojan://FH72359861@summary-lemming.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome#+++🏳️ UNKNOWN TROJAN 1084
+trojan://FH72359861@summary-lemming.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=summary-lemming.rooster465.autos#+++🏳️ UNKNOWN TROJAN 1594
+trojan://FH72359861@sterling-fowl.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome&sni=sterling-fowl.rooster465.autos#+++🏳️ UNKNOWN TROJAN 3542
+trojan://FH72359861@sterling-fowl.rooster465.autos:443?allowInsecure=0&type=tcp&security=none&encryption=none&sni=sterling-fowl.rooster465.autos#+++🏳️ UNKNOWN TROJAN 407
+trojan://FH72359861@sure-husky.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=sure-husky.rooster465.autos#+++🏳️ UNKNOWN TROJAN 3629
+trojan://FH72359861@sterling-fowl.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome#+++🏳️ UNKNOWN TROJAN 2108
+trojan://FH72359861@stunning-mastodon.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=stunning-mastodon.rooster465.autos#+++🏳️ UNKNOWN TROJAN 7210
+trojan://HC04361579@peaceful-muskrat.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=peaceful-muskrat.rooster465.autos#+++🏳️ UNKNOWN TROJAN 722
+trojan://HC04361579@star-bluejay.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=star-bluejay.rooster465.autos#+++🏳️ UNKNOWN TROJAN 8911
+trojan://FH72359861@upright-rhino.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=upright-rhino.rooster465.autos#+++🏳️ UNKNOWN TROJAN 8970
+trojan://PQ05174892@absolute-teal.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=absolute-teal.rooster465.autos#+++🏳️ UNKNOWN TROJAN 8279
+trojan://PQ05174892@amazed-burro.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome&sni=amazed-burro.rooster465.autos#+++🏳️ UNKNOWN TROJAN 3025
+trojan://PQ05174892@amusing-grub.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=amusing-grub.rooster465.autos#+++🏳️ UNKNOWN TROJAN 5758
+trojan://PQ05174892@aware-puma.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome&sni=aware-puma.rooster465.autos#+++🏳️ UNKNOWN TROJAN 1891
+trojan://PQ05174892@champion-alien.rooster465.autos:443?allowInsecure=1&type=tcp&security=none&encryption=none#+++🏳️ UNKNOWN TROJAN 394
+trojan://PQ05174892@comic-poodle.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome&sni=comic-poodle.rooster465.autos#+++🏳️ UNKNOWN TROJAN 4998
+trojan://PQ05174892@careful-cow.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome&sni=careful-cow.rooster465.autos#+++🏳️ UNKNOWN TROJAN 6366
+trojan://PQ05174892@champion-alien.rooster465.autos:443?allowInsecure=0&type=tcp&security=none&encryption=none#+++🏳️ UNKNOWN TROJAN 3135
+trojan://PQ05174892@champion-alien.rooster465.autos:443?type=tcp&security=none&encryption=none#+++🏳️ UNKNOWN TROJAN 6607
+trojan://PQ05174892@champion-alien.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=champion-alien.rooster465.autos#+++🏳️ UNKNOWN TROJAN 1595
+trojan://PQ05174892@endless-kiwi.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=endless-kiwi.rooster465.autos#+++🏳️ UNKNOWN TROJAN 4785
+trojan://PQ05174892@ethical-raccoon.rooster465.autos:443?allowInsecure=0&type=tcp&security=none&encryption=none&sni=ethical-raccoon.rooster465.autos#+++🏳️ UNKNOWN TROJAN 6250
+trojan://PQ05174892@champion-alien.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome#+++🏳️ UNKNOWN TROJAN 8948
+trojan://PQ05174892@ethical-raccoon.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome#+++🏳️ UNKNOWN TROJAN 4920
+trojan://PQ05174892@eminent-panther.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=eminent-panther.rooster465.autos#+++🏳️ UNKNOWN TROJAN 4956
+trojan://PQ05174892@evident-ant.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=evident-ant.rooster465.autos#+++🏳️ UNKNOWN TROJAN 1091
+trojan://PQ05174892@composed-sheep.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome&sni=composed-sheep.rooster465.autos#+++🏳️ UNKNOWN TROJAN 7995
+trojan://PQ05174892@excited-squirrel.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=excited-squirrel.rooster465.autos#+++🏳️ UNKNOWN TROJAN 5595
+trojan://PQ05174892@ethical-raccoon.rooster465.autos:443?type=tcp&security=none&encryption=none#+++🏳️ UNKNOWN TROJAN 4201
+trojan://PQ05174892@informed-alpaca.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=informed-alpaca.rooster465.autos#+++🏳️ UNKNOWN TROJAN 1834
+trojan://PQ05174892@ethical-raccoon.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=ethical-raccoon.rooster465.autos#+++🏳️ UNKNOWN TROJAN 4063
+trojan://PQ05174892@fit-marten.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=fit-marten.rooster465.autos#+++🏳️ UNKNOWN TROJAN 8201
+trojan://PQ05174892@lucky-marmot.rooster465.autos:443?type=raw&security=tls&fp=chrome#+++🏳️ UNKNOWN TROJAN 5761
+trojan://PQ05174892@hopeful-burro.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=hopeful-burro.rooster465.autos#+++🏳️ UNKNOWN TROJAN 8128
+trojan://PQ05174892@fleet-pony.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=fleet-pony.rooster465.autos#+++🏳️ UNKNOWN TROJAN 8870
+trojan://PQ05174892@fleet-pony.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome&sni=fleet-pony.rooster465.autos#+++🏳️ UNKNOWN TROJAN 6708
+trojan://PQ05174892@many-cricket.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=many-cricket.rooster465.autos#+++🏳️ UNKNOWN TROJAN 3628
+trojan://PQ05174892@flexible-titmouse.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=flexible-titmouse.rooster465.autos#+++🏳️ UNKNOWN TROJAN 7629
+trojan://PQ05174892@fair-reptile.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=fair-reptile.rooster465.autos#+++🏳️ UNKNOWN TROJAN 1220
+trojan://PQ05174892@fleet-pony.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome#+++🏳️ UNKNOWN TROJAN 2042
+trojan://PQ05174892@inspired-hound.rooster465.autos:443?type=tcp&security=none&encryption=none#+++🏳️ UNKNOWN TROJAN 4512
+trojan://PQ05174892@inspired-hound.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=inspired-hound.rooster465.autos#+++🏳️ UNKNOWN TROJAN 7003
+trojan://PQ05174892@free-tuna.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=free-tuna.rooster465.autos#+++🏳️ UNKNOWN TROJAN 1232
+trojan://PQ05174892@major-duckling.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=major-duckling.rooster465.autos#+++🏳️ UNKNOWN TROJAN 1741
+trojan://PQ05174892@mature-lamprey.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome&sni=mature-lamprey.rooster465.autos#+++🏳️ UNKNOWN TROJAN 5922
+trojan://PQ05174892@inspired-hound.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome#+++🏳️ UNKNOWN TROJAN 9263
+trojan://PQ05174892@merry-falcon.rooster465.autos:443?allowInsecure=0&type=tcp&security=none&encryption=none#+++🏳️ UNKNOWN TROJAN 4590
+trojan://PQ05174892@massive-ocelot.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=massive-ocelot.rooster465.autos#+++🏳️ UNKNOWN TROJAN 3018
+trojan://PQ05174892@musical-manatee.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=musical-manatee.rooster465.autos#+++🏳️ UNKNOWN TROJAN 2944
+trojan://PQ05174892@merry-falcon.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=merry-falcon.rooster465.autos#+++🏳️ UNKNOWN TROJAN 675
+trojan://PQ05174892@rapid-firefly.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=rapid-firefly.rooster465.autos#+++🏳️ UNKNOWN TROJAN 5717
+trojan://PQ05174892@merry-falcon.rooster465.autos:443?type=raw&security=tls&fp=chrome#+++🏳️ UNKNOWN TROJAN 5495
+trojan://PQ05174892@one-dove.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=one-dove.rooster465.autos#+++🏳️ UNKNOWN TROJAN 2148
+trojan://PQ05174892@mighty-lemming.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=mighty-lemming.rooster465.autos#+++🏳️ UNKNOWN TROJAN 9154
+trojan://PQ05174892@mighty-lemming.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome&sni=mighty-lemming.rooster465.autos#+++🏳️ UNKNOWN TROJAN 9494
+trojan://PQ05174892@musical-terrier.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=musical-terrier.rooster465.autos#+++🏳️ UNKNOWN TROJAN 2442
+trojan://PQ05174892@promoted-rattler.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=promoted-rattler.rooster465.autos#+++🏳️ UNKNOWN TROJAN 8711
+trojan://PQ05174892@pleased-sawfly.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=pleased-sawfly.rooster465.autos#+++🏳️ UNKNOWN TROJAN 1745
+trojan://PQ05174892@outgoing-cockatoo.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=outgoing-cockatoo.rooster465.autos#+++🏳️ UNKNOWN TROJAN 7966
+trojan://PQ05174892@rich-mule.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=rich-mule.rooster465.autos#+++🏳️ UNKNOWN TROJAN 6953
+trojan://PQ05174892@regular-raptor.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome#+++🏳️ UNKNOWN TROJAN 8995
+trojan://PQ05174892@resolved-gelding.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=resolved-gelding.rooster465.autos#+++🏳️ UNKNOWN TROJAN 352
+trojan://PQ05174892@pro-mako.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=pro-mako.rooster465.autos#+++🏳️ UNKNOWN TROJAN 432
+trojan://PQ05174892@sacred-anemone.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome&sni=sacred-anemone.rooster465.autos#+++🏳️ UNKNOWN TROJAN 5620
+trojan://PQ05174892@robust-toucan.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=robust-toucan.rooster465.autos#+++🏳️ UNKNOWN TROJAN 1037
+trojan://PQ05174892@regular-raptor.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome&sni=regular-raptor.rooster465.autos#+++🏳️ UNKNOWN TROJAN 7868
+trojan://PQ05174892@smooth-sculpin.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=smooth-sculpin.rooster465.autos#+++🏳️ UNKNOWN TROJAN 132
+trojan://PQ05174892@smooth-cougar.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=smooth-cougar.rooster465.autos#+++🏳️ UNKNOWN TROJAN 4455
+trojan://PQ05174892@vast-werewolf.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome&sni=vast-werewolf.rooster465.autos#+++🏳️ UNKNOWN TROJAN 2513
+trojan://PQ05174892@vast-werewolf.rooster465.autos:443?allowInsecure=1&type=tcp&security=none&encryption=none&sni=vast-werewolf.rooster465.autos#+++🏳️ UNKNOWN TROJAN 8856
+trojan://PQ05174892@welcome-monitor.rooster465.autos:443?type=tcp&security=none&encryption=none#+++🏳️ UNKNOWN TROJAN 3811
+trojan://PQ05174892@upright-rhino.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=upright-rhino.rooster465.autos#+++🏳️ UNKNOWN TROJAN 6434
+trojan://PQ05174892@welcome-monitor.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=welcome-monitor.rooster465.autos#+++🏳️ UNKNOWN TROJAN 3936
+trojan://PQ05174892@wise-rhino.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=wise-rhino.rooster465.autos#+++🏳️ UNKNOWN TROJAN 6464
+trojan://PQ05174892@vast-werewolf.rooster465.autos:443?type=tcp&security=none&encryption=none&sni=vast-werewolf.rooster465.autos#+++🏳️ UNKNOWN TROJAN 6084
+trojan://PQ05174892@welcome-monitor.rooster465.autos:443?type=tcp&security=tls&encryption=none&fp=chrome&sni=welcome-monitor.rooster465.autos#+++🏳️ UNKNOWN TROJAN 4744
+vless://03707fb7-0990-440f-88f6-b0e0f7242a38@104.16.62.25:443?type=ws&security=tls&fp=chrome&sni=de-new-1.ariyuz.org#+++🏳️ UNKNOWN VLESS 6052
+vless://03707fb7-0990-440f-88f6-b0e0f7242a38@104.16.63.25:443?type=ws&security=tls&fp=chrome&sni=de-new-1.ariyuz.org#+++🏳️ UNKNOWN VLESS 8164
+vless://03707fb7-0990-440f-88f6-b0e0f7242a38@104.19.45.195:443?type=ws&security=tls&fp=chrome&sni=de-new-1.ariyuz.org#+++🏳️ UNKNOWN VLESS 6897
+vless://746c4004-1d8f-4541-8e8a-533213d8a863@66.90.93.74:8443?encryption=none&fp=qq&path=%2Fapi%2Fconnect&security=tls&sni=gateway-v1.bosx.net&type=ws#+++🏳️ UNKNOWN VLESS 4354
+vless://766f6c65-0000-4000-8000-787000000002@volexproxy.karjadidd.workers.dev:2083?type=ws&security=tls&fp=chrome#---🏳️ UNKNOWN VLESS 465
+vless://77777777-8a3e-6666-b6d1-a9c5f0e8b3a2@172.64.52.175:443?type=ws&security=tls&fp=chrome&sni=faxf32gkfzoxqv.fx6hsv0.ccwu.cc#---🏳️ UNKNOWN VLESS 7376
+trojan://FH72359861@epic-iguana.rooster465.autos:443?security=tls&insecure=0&headerType=&type=tcp&allowInsecure=0#+++
+trojan://FH72359861@alert-redfish.rooster465.autos:443?sni=alert-redfish.rooster465.autos&fp=chrome&type=tcp&path=/#+++🏳️
+trojan://FH72359861@massive-ocelot.rooster465.autos:443?type=tcp#+++🇰🇷KR_1|4.5MB/s
+trojan://FH72359861@star-cheetah.rooster465.autos:443?sni=star-cheetah.rooster465.autos&fp=chrome&type=tcp&path=/#+++🏳️
+trojan://PQ05174892@inspired-hound.rooster465.autos:443?sni=inspired-hound.rooster465.autos&allowInsecure=1&type=tcp#+++
+trojan://FH72359861@internal-peacock.rooster465.autos:443?sni=internal-peacock.rooster465.autos&type=tcp&fp=chrome#+++🏳️
+trojan://FH72359861@helping-shark.rooster465.autos:443?allowInsecure=1#+++EPODONIOS
+trojan://FH72359861@adapting-giraffe.rooster465.autos:443?allowInsecure=0&sni=adapting-giraffe.rooster465.autos#+++
+trojan://FH72359861@summary-lemming.rooster465.autos:443#+++
+trojan://AE62539071@sacred-anemone.rooster465.autos:443?sni=sacred-anemone.rooster465.autos&fp=chrome&type=tcp&path=/#+++🏳️
+trojan://FH72359861@darling-mongrel.rooster465.autos:443?type=raw&headerType=none&security=tls&sni=darling-mongrel.rooster465.autos#+++
+trojan://FH72359861@casual-stallion.rooster465.autos:443?sni=casual-stallion.rooster465.autos&fp=chrome&type=tcp&path=/#+++🏳️
+trojan://FH72359861@brave-cattle.rooster465.autos:443?sni=brave-cattle.rooster465.autos&allowInsecure=1&type=tcp&fp=chrome#+++🇯🇵
+trojan://FH72359861@comic-poodle.rooster465.autos:443?sni=comic-poodle.rooster465.autos&type=tcp&fp=chrome#+++🏳️
+trojan://FH72359861@devoted-zebra.rooster465.autos:443?security=tls&path=/#+++🇺🇸
+trojan://PQ05174892@vast-werewolf.rooster465.autos:443?allowInsecure=1&sni=vast-werewolf.rooster465.autos#+++🇸🇬SG_6|4.6MB/s
+trojan://FH72359861@bright-quagga.rooster465.autos:443?allowInsecure=0&sni=bright-quagga.rooster465.autos#+++
+trojan://AE62539071@rested-osprey.rooster465.autos:443?sni=rested-osprey.rooster465.autos&fp=chrome&type=tcp&path=%2f#+++
+trojan://PQ05174892@musical-manatee.rooster465.autos:443?sni=musical-manatee.rooster465.autos&type=tcp&fp=chrome#+++
+trojan://FH72359861@flying-swift.rooster465.autos:443?security=tls&sni=flying-swift.rooster465.autos#+++🇯🇵JP-54.249.17.79-0203
+trojan://FH72359861@endless-kiwi.rooster465.autos:443?allowInsecure=1#+++EPODONIOS
+trojan://FH72359861@endless-kiwi.rooster465.autos:443?allowInsecure=1#+++
+trojan://PQ05174892@fleet-pony.rooster465.autos:443?allowInsecure=0&sni=fleet-pony.rooster465.autos#+++
+trojan://FH72359861@living-hagfish.rooster465.autos:443?sni=living-hagfish.rooster465.autos&path=/#+++🏳️
+trojan://FH72359861@alert-redfish.rooster465.autos:443?sni=alert-redfish.rooster465.autos&type=tcp&fp=chrome#+++🏳️
+trojan://FH72359861@darling-mongrel.rooster465.autos:443?sni=darling-mongrel.rooster465.autos&path=/#+++🏳️
+trojan://FH72359861@helping-shark.rooster465.autos:443?security=tls&sni=helping-shark.rooster465.autos&path=/#+++🏳️
+trojan://FH72359861@darling-mongrel.rooster465.autos:443?security=tls&sni=darling-mongrel.rooster465.autos&path=%2f#+++
+trojan://FH72359861@one-dove.rooster465.autos:443?allowInsecure=1#+++EPODONIOS
+trojan://FH72359861@summary-firefly.rooster465.autos:443#+++>>@oneclickvpnkeys::IE
+trojan://FH72359861@adapting-giraffe.rooster465.autos:443?security=tls&path=/#+++🇺🇸
+vmess://eyJ2IjoiMiIsInBzIjoi5pyq55+lNiIsImFkZCI6IjQ3LjI1MC4xMzUuMjQ0IiwicG9ydCI6IjEwMDAwIiwiaWQiOiJhZWRjNjZiOC05OWQ3LTRhMjEtODMxMC02MTg3MGU3Zjg3MGQiLCJhaWQiOiIwIiwic2N5IjoiYXV0byIsIm5ldCI6InRjcCIsInR5cGUiOiJub25lIiwiaG9zdCI6IiIsInBhdGgiOiIvIiwidGxzIjoiIiwic25pIjoiIiwidGVzdF9uYW1lIjoiNiJ9#+++
+vmess://eyJhZGQiOiI0Ny4yNTAuMTM1LjI0NCIsImFpZCI6IjAiLCJpZCI6ImFlZGM2NmI4LTk5ZDctNGEyMS04MzEwLTYxODcwZTdmODcwZCIsIm5ldCI6InRjcCIsInBvcnQiOiIxMDAwMCIsInBzIjoiQnkgRWJyYVNoYSDwn4yMIiwic2N5IjoiYXV0byIsInRscyI6IiIsInR5cGUiOiIiLCJ2IjoiMiJ9#+++
+vmess://eyJhZGQiOiI0Ny4yNTAuMTM1LjI0NCIsImFpZCI6IjAiLCJhbHBuIjoiIiwiZnAiOiIiLCJob3N0IjoiIiwiaWQiOiJhZWRjNjZiOC05OWQ3LTRhMjEtODMxMC02MTg3MGU3Zjg3MGQiLCJuZXQiOiJ0Y3AiLCJwYXRoIjoiIiwicG9ydCI6IjEwMDAwIiwicHMiOiJNWSDwn4ey8J+HviB8IEBSYXlkaWthbHggfCAyNzEzIiwic2N5IjoiYXV0byIsInNuaSI6IiIsInRscyI6IiIsInR5cGUiOiIiLCJ2IjoiMiIsInNraXAtY2VydC12ZXJpZnkiOnRydWV9#+++
+vmess://eyJhZGQiOiI0Ny4yNTAuMTM1LjI0NCIsImFpZCI6MCwiaWQiOiJhZWRjNjZiOC05OWQ3LTRhMjEtODMxMC02MTg3MGU3Zjg3MGQiLCJuZXQiOiJ0Y3AiLCJwb3J0IjoxMDAwMCwicHMiOiJCeSBFYnJhU2hhIPCfpbciLCJzY3kiOiJhdXRvIiwidHlwZSI6Im5vbmUiLCJ2IjoiMiJ9#+++
+vmess://eyJhZGQiOiI0Ny4yNTAuMTM1LjI0NCIsImFpZCI6IjAiLCJpZCI6ImFlZGM2NmI4LTk5ZDctNGEyMS04MzEwLTYxODcwZTdmODcwZCIsIm5ldCI6InRjcCIsInBvcnQiOiIxMDAwMCIsInBzIjoiQnkgRWJyYVNoYSDwn5C6Iiwic2N5IjoiYXV0byIsInRscyI6IiIsInR5cGUiOiIiLCJ2IjoiMiJ9#+++
+vmess://eyJhZGQiOiI0Ny4yNTAuMTM1LjI0NCIsImFpZCI6IjAiLCJob3N0IjoiIiwiaWQiOiJhZWRjNjZiOC05OWQ3LTRhMjEtODMxMC02MTg3MGU3Zjg3MGQiLCJuZXQiOiJ0Y3AiLCJwYXRoIjoiLyIsInBvcnQiOiIxMDAwMCIsInBzIjoiQnkgRWJyYVNoYSDwn5CJIiwic2N5IjoiYXV0byIsInNuaSI6IiIsInRlc3RfbmFtZSI6IjEwNCIsInRscyI6IiIsInR5cGUiOiJub25lIiwidiI6IjIifQ==#---
+vmess://eyJhZGQiOiI0Ny4yNTAuMTM1LjI0NCIsImFpZCI6IjAiLCJob3N0IjoiIiwiaWQiOiJhZWRjNjZiOC05OWQ3LTRhMjEtODMxMC02MTg3MGU3Zjg3MGQiLCJuZXQiOiJ0Y3AiLCJwYXRoIjoiLyIsInBvcnQiOiIxMDAwMCIsInBzIjoiQnkgRWJyYVNoYSDwn6m4Iiwic2N5IjoiYXV0byIsInNuaSI6IiIsInRlc3RfbmFtZSI6IjUwIiwidGxzIjoiIiwidHlwZSI6Im5vbmUiLCJ2IjoiMiJ9#---
+vmess://eyJ2IjoiMiIsInBzIjoi5pyq55+lNjEgMzM1LjhLQi9zIiwiYWRkIjoiNDcuMjUwLjEzNS4yNDQiLCJwb3J0IjoiMTAwMDAiLCJpZCI6ImFlZGM2NmI4LTk5ZDctNGEyMS04MzEwLTYxODcwZTdmODcwZCIsImFpZCI6IjAiLCJzY3kiOiJhdXRvIiwibmV0IjoidGNwIiwidHlwZSI6Im5vbmUiLCJob3N0IjoiIiwicGF0aCI6Ii8iLCJ0bHMiOiIiLCJzbmkiOiIiLCJ0ZXN0X25hbWUiOiI2MSJ9#+++
+vmess://eyJ2IjogIjIiLCAicHMiOiAi8J+HsvCfh74gNDQgLSBNWSAtIFZNZXNzIC0gMTAwMDAiLCAiYWRkIjogIjQ3LjI1MC4xMzUuMjQ0IiwgInBvcnQiOiAxMDAwMCwgImlkIjogImFlZGM2NmI4LTk5ZDctNGEyMS04MzEwLTYxODcwZTdmODcwZCIsICJhaWQiOiAiMCIsICJzY3kiOiAiYXV0byIsICJuZXQiOiAidGNwIiwgInR5cGUiOiAiIiwgInRscyI6ICIiLCAibmFtZSI6ICLwn4ey8J+HviB8IEBXaGl0ZUROUyB8IE1ZMnwyLjdNQi9zfEdQVOKBui1NWXxHTS1NWXxDTC1NWXxTUC1NWSJ9#+++
+vmess://eyJhZGQiOiJkZWFwcC5qaXN1eXVuLnRvcCIsImFpZCI6IjAiLCJhbHBuIjoiIiwiZnAiOiIiLCJob3N0IjoiZGVhcHAuamlzdXl1bi50b3AiLCJpZCI6IjlhMWEwNWQ5LTY5YmUtNDVkMy1lMzI2LWM2NjIxZWRmN2IzMSIsImluc2VjdXJlIjoiMCIsIm5ldCI6IndzIiwicGF0aCI6Ii9kZXZtIiwicGNzIjoiIiwicG9ydCI6IjIwNTMiLCJwcyI6IkJ5IEVicmFTaGEg8J+UpSIsInNjeSI6ImF1dG8iLCJzbmkiOiIiLCJ0bHMiOiJ0bHMiLCJ0eXBlIjoiLS0tIiwidiI6IjIiLCJ2Y24iOiIifQ==#---
+trojan://PQ05174892@3.120.37.181:443?sni=many-cricket.rooster465.autos&allowInsecure=1&type=tcp#+++🇩🇪 @MrMeshkyChannel 241410
+trojan://PQ05174892@3.124.187.220:443?sni=rapid-firefly.rooster465.autos&allowInsecure=1&type=tcp#+++🇩🇪 @MrMeshkyChannel 854262
+trojan://PQ05174892@54.93.54.137:443?sni=informed-alpaca.rooster465.autos&allowInsecure=1&type=tcp#+++🇩🇪 @MrMeshkyChannel 115966
+trojan://PQ05174892@3.120.37.181:443?sni=many-cricket.rooster465.autos&type=tcp&fp=chrome#+++🇩🇪 @MrMeshkyChannel 241410
+trojan://PQ05174892@3.124.187.220:443?sni=rapid-firefly.rooster465.autos&type=tcp&fp=chrome#+++🇩🇪 @MrMeshkyChannel 854262
+trojan://PQ05174892@35.160.249.189:443?sni=absolute-teal.rooster465.autos&allowInsecure=1&type=tcp#+++🇺🇸 @MrMeshkyChannel 691269
+trojan://PQ05174892@52.77.218.157:443?sni=simple-sunbeam.rooster465.autos&allowInsecure=1&type=tcp#+++🇸🇬 @MrMeshkyChannel 565533
+vless://9aff0732-7ce4-4b34-ba20-e67c6df64fdd@185.221.163.211:443?security=reality&encryption=none&pbk=lQ8pnlOU0kqS77TA7Fftl8nSzktXLzFpOLGqCZEAhjg&headerType=none&type=tcp&flow=xtls-rprx-vision&sni=fin1.panel11.ru&sid=aaec521b22bbe6cb#+++🇻🇬 @MrMeshkyChannel 121596
+trojan://PQ05174892@3.120.37.181:443?sni=many-cricket.rooster465.autos&type=tcp#+++🇩🇪 @MrMeshkyChannel 241410
+trojan://PQ05174892@3.124.187.220:443?sni=rapid-firefly.rooster465.autos&type=tcp#+++🇩🇪 @MrMeshkyChannel 854262
+trojan://PQ05174892@54.93.54.137:443?sni=informed-alpaca.rooster465.autos&type=tcp#+++🇩🇪 @MrMeshkyChannel 115966
+trojan://PQ05174892@35.160.249.189:443?sni=absolute-teal.rooster465.autos&type=tcp#+++🇺🇸 @MrMeshkyChannel 691269
+trojan://PQ05174892@52.77.218.157:443?sni=simple-sunbeam.rooster465.autos&type=tcp#+++🇸🇬 @MrMeshkyChannel 565533
+vless://9aff0732-7ce4-4b34-ba20-e67c6df64fdd@185.221.163.211:443?type=tcp&encryption=none&security=reality&pbk=lQ8pnlOU0kqS77TA7Fftl8nSzktXLzFpOLGqCZEAhjg&sid=aaec521b22bbe6cb&sni=fin1.panel11.ru&fp=chrome&flow=xtls-rprx-vision#+++🇻🇬 @MrMeshkyChannel 121596
+vless://03707fb7-0990-440f-88f6-b0e0f7242a38@170.114.45.239:443?security=tls&encryption=none&insecure=0&type=ws&allowInsecure=0&sni=de-new-1.ariyuz.org#+++@npv_vpn11
+trojan://FH72359861@engaging-toucan.rooster465.autos:443?security=tls#+++@npv_vpn11
+trojan://FH72359861@summary-lemming.rooster465.autos:443?security=tls#+++@npv_vpn11
+trojan://FH72359861@included-hedgehog.rooster465.autos:443?fp=chrome&security=tls&sni=included-hedgehog.rooster465.autos&type=tcp#+++@npv_vpn11
+trojan://FH72359861@comic-poodle.rooster465.autos:443?security=tls&sni=comic-poodle.rooster465.autos#+++@npv_vpn11
+trojan://FH72359861@devoted-zebra.rooster465.autos:443?security=tls&sni=devoted-zebra.rooster465.autos#+++@npv_vpn11
+trojan://FH72359861@brief-hare.rooster465.autos:443?fp=chrome&security=tls&sni=brief-hare.rooster465.autos&type=tcp#+++@npv_vpn11
+trojan://FH72359861@actual-chicken.rooster465.autos:443?security=tls&sni=actual-chicken.rooster465.autos#+++@npv_vpn11
+trojan://AE62539071@smooth-hornet.rooster465.autos:443?fp=chrome&security=tls&sni=smooth-hornet.rooster465.autos&type=tcp#+++@npv_vpn11
+trojan://FH72359861@sterling-fowl.rooster465.autos:443?fp=chrome&security=tls&sni=sterling-fowl.rooster465.autos&type=tcp#+++@npv_vpn11
+trojan://AE62539071@rested-osprey.rooster465.autos:443?fp=chrome&security=tls&sni=rested-osprey.rooster465.autos&type=tcp#+++@npv_vpn11
+trojan://FH72359861@upright-rhino.rooster465.autos:443?security=tls&sni=upright-rhino.rooster465.autos#+++@npv_vpn11
+trojan://FH72359861@bright-quagga.rooster465.autos:443?allowInsecure=0&security=tls&sni=bright-quagga.rooster465.autos#+++@npv_vpn11
+trojan://FH72359861@alert-redfish.rooster465.autos:443?security=tls&sni=alert-redfish.rooster465.autos#+++@npv_vpn11
+trojan://FH72359861@classic-pug.rooster465.autos:443?fp=chrome&security=tls&sni=classic-pug.rooster465.autos&type=tcp#+++@npv_vpn11
+trojan://FH72359861@helping-shark.rooster465.autos:443?allowInsecure=1&security=tls#+++@npv_vpn11
+trojan://FH72359861@funny-hawk.rooster465.autos:443?security=tls&sni=funny-hawk.rooster465.autos#+++@npv_vpn11
+trojan://FH72359861@summary-firefly.rooster465.autos:443?fp=chrome&security=tls&sni=summary-firefly.rooster465.autos&type=tcp#+++@npv_vpn11
+trojan://FH72359861@gentle-platypus.rooster465.autos:443?fp=chrome&security=tls&sni=gentle-platypus.rooster465.autos&type=tcp#+++@npv_vpn11
+trojan://FH72359861@one-dove.rooster465.autos:443?security=tls&sni=one-dove.rooster465.autos#+++@npv_vpn11
+trojan://FH72359861@adapting-giraffe.rooster465.autos:443?security=tls&sni=adapting-giraffe.rooster465.autos&insecure=0&allowInsecure=0&type=tcp&headerType=none#+++@npv_vpn11
+trojan://FH72359861@steady-lemming.rooster465.autos:443?security=tls&sni=steady-lemming.rooster465.autos#+++@npv_vpn11
+trojan://FH72359861@stunning-mastodon.rooster465.autos:443?security=tls&sni=stunning-mastodon.rooster465.autos#+++@npv_vpn11
+trojan://FH72359861@sure-husky.rooster465.autos:443?security=tls&sni=sure-husky.rooster465.autos#+++@npv_vpn11
+trojan://FH72359861@brave-cattle.rooster465.autos:443?fp=chrome&security=tls&sni=brave-cattle.rooster465.autos&type=tcp#+++@npv_vpn11
+trojan://FH72359861@funny-squid.rooster465.autos:443?fp=chrome&security=tls&sni=funny-squid.rooster465.autos&type=tcp#+++@npv_vpn11
+trojan://FH72359861@pleased-sawfly.rooster465.autos:443?fp=chrome&security=tls&sni=pleased-sawfly.rooster465.autos&type=tcp#+++@npv_vpn11
+trojan://FH72359861@flying-swift.rooster465.autos:443?security=tls&sni=flying-swift.rooster465.autos#+++@npv_vpn11
+trojan://AE62539071@one-quail.rooster465.autos:443?security=tls&sni=one-quail.rooster465.autos#+++@npv_vpn11
+trojan://FH72359861@casual-stallion.rooster465.autos:443?security=tls&sni=casual-stallion.rooster465.autos#+++@npv_vpn11
+trojan://FH72359861@star-cheetah.rooster465.autos:443?fp=chrome&security=tls&sni=star-cheetah.rooster465.autos&type=tcp#+++@npv_vpn11
+trojan://FH72359861@exciting-turtle.rooster465.autos:443?fp=chrome&security=tls&sni=exciting-turtle.rooster465.autos&type=tcp#+++@npv_vpn11
+trojan://FH72359861@hopeful-burro.rooster465.autos:443?security=tls&sni=hopeful-burro.rooster465.autos#+++@npv_vpn11
+trojan://AE62539071@elegant-marten.rooster465.autos:443?security=tls&sni=elegant-marten.rooster465.autos#+++@npv_vpn11
+trojan://FH72359861@stable-racer.rooster465.autos:443?security=tls&sni=stable-racer.rooster465.autos#+++@npv_vpn11
+trojan://FH72359861@darling-mongrel.rooster465.autos:443?security=tls&sni=darling-mongrel.rooster465.autos#+++@npv_vpn11
+trojan://FH72359861@flexible-pony.rooster465.autos:443?security=tls&sni=flexible-pony.rooster465.autos#+++@npv_vpn11
+trojan://FH72359861@internal-peacock.rooster465.autos:443?security=tls&sni=internal-peacock.rooster465.autos#+++@npv_vpn11
+trojan://FH72359861@epic-iguana.rooster465.autos:443?fp=chrome&security=tls&sni=epic-iguana.rooster465.autos&type=tcp#+++@npv_vpn11
+trojan://FH72359861@sacred-shepherd.rooster465.autos:443?fp=chrome&security=tls&sni=sacred-shepherd.rooster465.autos&type=tcp#+++@npv_vpn11
+trojan://AE62539071@sacred-anemone.rooster465.autos:443?fp=chrome&security=tls&sni=sacred-anemone.rooster465.autos&type=tcp#+++@npv_vpn11
+trojan://AE62539071@rich-mule.rooster465.autos:443?fp=chrome&security=tls&sni=rich-mule.rooster465.autos&type=tcp#+++@npv_vpn11
+trojan://FH72359861@outgoing-lynx.rooster465.autos:443?fp=chrome&security=tls&sni=outgoing-lynx.rooster465.autos&type=tcp#+++@npv_vpn11
+trojan://FH72359861@endless-kiwi.rooster465.autos:443?allowInsecure=0&security=tls&sni=endless-kiwi.rooster465.autos#+++@npv_vpn11
+vless://1078d418-b4e0-4668-9018-dc90c2042d61@162.251.82.131:443?security=tls&type=ws&path=/fp&host=workspace.evan00.dpdns.org&packetEncoding=xudp&sni=workspace.evan00.dpdns.org&fp=chrome&encryption=none#---@npv_vpn11
+trojan://FH72359861@equal-labrador.rooster465.autos:443?allowInsecure=1&security=tls&sni=equal-labrador.rooster465.autos&type=tcp#+++@npv_vpn11
+trojan://FH72359861@magical-prawn.rooster465.autos:443?security=tls&sni=magical-prawn.rooster465.autos#+++@npv_vpn11
+trojan://FH72359861@living-hagfish.rooster465.autos:443?allowInsecure=1&security=tls&sni=living-hagfish.rooster465.autos&type=tcp#+++@npv_vpn11
+trojan://FH72359861@funny-squid.rooster465.autos:443?security=tls#+++@npv_vpn11
+trojan://FH72359861@epic-iguana.rooster465.autos:443?allowInsecure=1#+++@npv_vpn11
+trojan://FH72359861@summary-lemming.rooster465.autos:443?mux=1#+++@npv_vpn11
+trojan://FH72359861@engaging-toucan.rooster465.autos:443?allowInsecure=1#+++@npv_vpn11
+vless://03707fb7-0990-440f-88f6-b0e0f7242a38@104.19.45.195:443?type=ws&security=tls&sni=de-new-1.ariyuz.org#+++@npv_vpn11
+trojan://AE62539071@one-quail.rooster465.autos:443?sni=one-quail.rooster465.autos&type=tcp&fp=chrome#+++@npv_vpn11
