@@ -24,12 +24,14 @@ A separate collector scrapes and tunnel-tests AmneziaWG configs from community s
 
 | Path | Description |
 |---|---|
-| [**results_awg/all_configs.zip**](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results_awg/all_configs.zip) | Import this into the Amnezia app — the 50 fastest verified configs, capped at 5 per /24 subnet |
-| `results_awg/known_good/*.conf` | Full pool of all currently-passing configs (one file per endpoint) |
+| [**results_awg/all_configs.zip**](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results_awg/all_configs.zip) | Import this into the Amnezia app — the 50 fastest configs that change your exit country, capped at 5 per /24 subnet |
+| `results_awg/known_good/*.conf` | Full pool of currently-passing configs that exit outside Russia (one file per endpoint) |
+| [results_awg/all_configs_warp.zip](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results_awg/all_configs_warp.zip) | Configs that pass handshake+speed but exit through Cloudflare WARP anycast back into Russia — still useful for DPI bypass, just no geo change |
+| `results_awg/known_good_warp/*.conf` | Full pool of the WARP-anycast configs above |
 
-**Import:** Amnezia app → Add VPN → From file → `all_configs.zip`
+**Import:** Amnezia app → Add VPN → From file → `all_configs.zip` (or `all_configs_warp.zip` if you only need DPI bypass, not a geo change)
 
-Each config is real-tunnel-tested (handshake verified + exit country outside Russia + speed ≥ 1 Mbit/s). The full pool of verified configs (`results_awg/known_good/`) contains all passing configs; the archive is rebuilt to include only the 50 fastest after each run.
+Each config is real-tunnel-tested (handshake verified + speed ≥ 1 Mbit/s). Configs are split by exit country: those landing outside Russia go to `known_good/`, those landing back in Russia (typically WARP anycast routing to the nearest edge) go to `known_good_warp/` instead of being discarded. Both pools are rebuilt to include only the 50 fastest configs (capped per /24) after each run; `--recheck` also moves a config between the two pools if its exit country changes.
 
 Sources: Telegram [@amnezia_wg](https://t.me/amnezia_wg), [@vpnconfigsgive](https://t.me/vpnconfigsgive), [Delta-Kronecker/WARP-Config](https://github.com/Delta-Kronecker/WARP-Config).
 
