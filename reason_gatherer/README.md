@@ -12,7 +12,7 @@ Scrapes free VPN configs from GitHub repositories, filters them by TCP reachabil
 | [run_2026-08-14.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-08-14.txt) | Earlier run |
 | [run_2026-08-07.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-08-07.txt) | Earlier run |
 | [run_2026-08-03.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-08-03.txt) | Earlier run |
-| [recheck_2026-09-01.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/recheck_2026-09-01.txt) | Latest recheck (configs re-verified from known_good) |
+| [recheck_2026-09-04.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/recheck_2026-09-04.txt) | Latest recheck (configs re-verified from known_good) |
 
 Configs marked `+++` passed the Claude.com access check (unblocked from Russia). Configs marked `---` passed the speed test but Claude.com was blocked through them.
 
