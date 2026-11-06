@@ -1,9 +1,10 @@
 import json
 import pytest
+from threading import Barrier
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 from vpn_collector.sources import (
-    load_sources, save_sources, add_source,
+    load_sources, save_sources, add_source, fetch_repo_texts,
     sync_stars, fetch_url_configs, fetch_repo_configs, _is_fetchable,
 )
 
@@ -183,3 +184,56 @@ class TestFetchRepoConfigs:
         MockSession.return_value = mock_instance
         configs = fetch_repo_configs("user/repo")
         assert len(configs) == 3  # deduped across three identical files
+
+
+def test_fetch_repo_texts_fetches_files_concurrently(monkeypatch):
+    barrier = Barrier(2)
+    tree = MagicMock(status_code=200)
+    tree.json.return_value = {
+        "tree": [
+            {"type": "blob", "path": "README.md"},
+            {"type": "blob", "path": "links.txt"},
+        ]
+    }
+
+    def fake_request(session, method, url, **kwargs):
+        if "api.github.com" in url:
+            return tree
+        barrier.wait(timeout=0.5)
+        response = MagicMock(status_code=200)
+        response.text = url
+        return response
+
+    monkeypatch.setattr("vpn_collector.sources._request", fake_request)
+
+    result = fetch_repo_texts("user/repo")
+
+    assert len(result) == 2
+
+
+def test_fetch_repo_texts_skips_bulk_static_node_files(monkeypatch):
+    tree = MagicMock(status_code=200)
+    tree.json.return_value = {
+        "tree": [
+            {"type": "blob", "path": "README.md"},
+            {"type": "blob", "path": "subscriptions.txt"},
+            {"type": "blob", "path": "nodes/node-001.txt"},
+            {"type": "blob", "path": "random.py"},
+        ]
+    }
+    fetched = []
+
+    def fake_request(session, method, url, **kwargs):
+        if "api.github.com" in url:
+            return tree
+        fetched.append(url)
+        response = MagicMock(status_code=200)
+        response.text = url
+        return response
+
+    monkeypatch.setattr("vpn_collector.sources._request", fake_request)
+
+    result = fetch_repo_texts("user/repo")
+
+    assert len(result) == 2
+    assert all("node-001" not in url for url in fetched)

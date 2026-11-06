@@ -4,11 +4,16 @@ import json
 import logging
 import os
 import random
+import re
 import socket
 import subprocess
+import threading
 import tempfile
 import time
+from collections import Counter
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 from urllib.parse import urlparse, parse_qs, unquote
 
 import requests
@@ -23,6 +28,60 @@ from vpn_collector.config import (
 from vpn_collector.parser import extract_host_port, extract_name, set_name
 
 logger = logging.getLogger(__name__)
+
+
+class UnsupportedTransportError(ValueError):
+    """Raised when the installed sing-box engine cannot implement a share transport."""
+
+
+@dataclass(frozen=True)
+class SpeedTestResult:
+    speed_mbps: float | None
+    error: str | None = None
+
+
+class FailureDiagnostics:
+    """Thread-safe per-tunnel-run counters with one safe example per category."""
+
+    def __init__(self) -> None:
+        self.counts: Counter[str] = Counter()
+        self.examples: dict[str, str] = {}
+        self._lock = threading.Lock()
+
+    def record(self, category: str, detail: str = "") -> None:
+        with self._lock:
+            self.counts[category] += 1
+            if detail and category not in self.examples:
+                detail = re.sub(r"https?://\S+", "<url>", detail)
+                self.examples[category] = detail[:180]
+
+    def snapshot(self) -> tuple[dict[str, int], dict[str, str]]:
+        with self._lock:
+            return dict(self.counts), dict(self.examples)
+
+
+def classify_singbox_failure(log_text: str) -> str:
+    text = log_text.lower()
+    if any(token in text for token in (
+        "failed to verify certificate", "certificate has expired",
+        "certificate is valid for", "x509:",
+    )):
+        return "tls_certificate"
+    if "unexpected http response status" in text:
+        return "transport_handshake"
+    if "reality verification failed" in text:
+        return "reality_handshake"
+    if any(token in text for token in (
+        "no such host", "server misbehaving", "temporary failure in name resolution",
+        "nxdomain",
+    )):
+        return "dns_error"
+    if any(token in text for token in (
+        "connection refused", "network is unreachable", "i/o timeout",
+        "connection reset by peer", "no route to host",
+    )):
+        return "proxy_connect_error"
+    return "singbox_error" if log_text.strip() else "probe_error"
 
 
 async def tcp_check(host: str, port: int, timeout: float = TCP_TIMEOUT) -> bool:
@@ -90,6 +149,10 @@ def _parse_vless(line: str) -> dict:
     security = params.get("security", ["none"])[0]
     sni = params.get("sni", params.get("host", [p.hostname]))[0]
     transport_type = params.get("type", ["tcp"])[0]
+    if transport_type == "xhttp":
+        raise UnsupportedTransportError(
+            "xhttp is not supported by upstream sing-box; use an XHTTP-capable core"
+        )
     outbound: dict = {
         "type": "vless",
         "tag": "proxy",
@@ -122,6 +185,18 @@ def _parse_vless(line: str) -> dict:
             "type": "grpc",
             "service_name": params.get("serviceName", [""])[0],
         }
+    elif transport_type == "httpupgrade":
+        outbound["transport"] = {
+            "type": "httpupgrade",
+            "host": params.get("host", [""])[0],
+            "path": params.get("path", [""])[0],
+        }
+    elif transport_type == "http":
+        outbound["transport"] = {
+            "type": "http",
+            "host": [params["host"][0]] if params.get("host", [""])[0] else [],
+            "path": params.get("path", [""])[0],
+        }
     return outbound
 
 
@@ -145,6 +220,10 @@ def _parse_vmess(line: str) -> dict:
             "insecure": True,
         }
     net = data.get("net", "tcp")
+    if net == "xhttp":
+        raise UnsupportedTransportError(
+            "xhttp is not supported by upstream sing-box; use an XHTTP-capable core"
+        )
     if net == "ws":
         outbound["transport"] = {
             "type": "ws",
@@ -153,6 +232,19 @@ def _parse_vmess(line: str) -> dict:
         }
     elif net == "grpc":
         outbound["transport"] = {"type": "grpc", "service_name": data.get("path", "")}
+    elif net == "httpupgrade":
+        outbound["transport"] = {
+            "type": "httpupgrade",
+            "host": data.get("host", ""),
+            "path": data.get("path", ""),
+        }
+    elif net == "http":
+        host = data.get("host", "")
+        outbound["transport"] = {
+            "type": "http",
+            "host": [host] if host else [],
+            "path": data.get("path", ""),
+        }
     return outbound
 
 
@@ -160,7 +252,7 @@ def _parse_trojan(line: str) -> dict:
     p = urlparse(line)
     params = parse_qs(p.query)
     sni = params.get("sni", [p.hostname])[0]
-    return {
+    outbound = {
         "type": "trojan",
         "tag": "proxy",
         "server": p.hostname,
@@ -168,6 +260,29 @@ def _parse_trojan(line: str) -> dict:
         "password": unquote(p.username or ""),
         "tls": {"enabled": True, "server_name": sni, "insecure": True},
     }
+    transport_type = params.get("type", ["tcp"])[0]
+    if transport_type == "xhttp":
+        raise UnsupportedTransportError(
+            "xhttp is not supported by upstream sing-box; use an XHTTP-capable core"
+        )
+    if transport_type == "httpupgrade":
+        outbound["transport"] = {
+            "type": "httpupgrade",
+            "host": params.get("host", [""])[0],
+            "path": params.get("path", [""])[0],
+        }
+    elif transport_type == "ws":
+        outbound["transport"] = {
+            "type": "ws",
+            "path": params.get("path", ["/"])[0],
+            "headers": {"Host": params.get("host", [sni])[0]},
+        }
+    elif transport_type == "grpc":
+        outbound["transport"] = {
+            "type": "grpc",
+            "service_name": params.get("serviceName", [""])[0],
+        }
+    return outbound
 
 
 def _parse_ss(line: str) -> dict:
@@ -256,7 +371,9 @@ def _parse_socks(line: str) -> dict:
     }
 
 
-def generate_singbox_config(config_line: str, socks_port: int) -> dict:
+def generate_singbox_config(
+    config_line: str, socks_port: int, verify_tls_cert: bool = False
+) -> dict:
     line = config_line.strip().split("#")[0]
     if line.startswith("vless://"):
         outbound = _parse_vless(line)
@@ -276,6 +393,10 @@ def generate_singbox_config(config_line: str, socks_port: int) -> dict:
         outbound = _parse_socks(line)
     else:
         raise ValueError(f"Unsupported protocol: {line[:20]}")
+    if verify_tls_cert and "tls" in outbound:
+        # sing-box validates certificates by default; existing collector modes
+        # keep their historical insecure setting unless strict mode is asked for.
+        outbound["tls"].pop("insecure", None)
     return _singbox_wrapper(socks_port, outbound)
 
 
@@ -300,28 +421,49 @@ def _socks_session(socks_port: int) -> requests.Session:
     return session
 
 
-def speedtest_via_socks(socks_port: int) -> float:
+def speedtest_via_socks_detailed(socks_port: int) -> SpeedTestResult:
     abort_threshold = MIN_SPEED_MBPS * SPEEDTEST_EARLY_ABORT_FACTOR
+    best_speed: float | None = None
+    errors: list[str] = []
     with _socks_session(socks_port) as session:
         for url in SPEEDTEST_URLS:
             try:
                 start = time.time()
-                resp = session.get(url, stream=True, timeout=15)
-                downloaded = 0
-                for chunk in resp.iter_content(chunk_size=65536):
-                    downloaded += len(chunk)
-                    elapsed = time.time() - start
-                    if elapsed >= SPEEDTEST_EARLY_ABORT_AFTER:
-                        current_mbps = (downloaded * 8) / (elapsed * 1_000_000)
-                        if current_mbps < abort_threshold:
-                            return current_mbps
-                    if downloaded >= 1024 * 1024:
-                        break
+                with session.get(url, stream=True, timeout=15) as resp:
+                    status = getattr(resp, "status_code", 200)
+                    if status >= 400:
+                        errors.append(f"HTTP {status} from speed-test endpoint")
+                        continue
+                    downloaded = 0
+                    for chunk in resp.iter_content(chunk_size=65536):
+                        downloaded += len(chunk)
+                        elapsed = time.time() - start
+                        if elapsed >= SPEEDTEST_EARLY_ABORT_AFTER:
+                            current_mbps = (downloaded * 8) / (elapsed * 1_000_000)
+                            if current_mbps < abort_threshold:
+                                break
+                        if downloaded >= 1024 * 1024:
+                            break
                 elapsed = time.time() - start
-                return (downloaded * 8) / (elapsed * 1_000_000) if elapsed > 0 else 0.0
-            except Exception:
+                if downloaded <= 0:
+                    errors.append("empty response from speed-test endpoint")
+                    continue
+                speed = (downloaded * 8) / (elapsed * 1_000_000) if elapsed > 0 else 0.0
+                best_speed = speed if best_speed is None else max(best_speed, speed)
+                if speed >= MIN_SPEED_MBPS:
+                    return SpeedTestResult(speed)
+            except Exception as exc:
+                errors.append(f"{type(exc).__name__}: {exc}")
                 continue
-    return 0.0
+    if best_speed is not None:
+        return SpeedTestResult(best_speed)
+    return SpeedTestResult(None, "; ".join(errors[-3:]) or "no speed-test response")
+
+
+def speedtest_via_socks(socks_port: int) -> float:
+    """Compatibility wrapper returning zero when no speed measurement was possible."""
+    result = speedtest_via_socks_detailed(socks_port)
+    return result.speed_mbps or 0.0
 
 
 def check_claude_via_socks(socks_port: int) -> str:
@@ -340,24 +482,32 @@ def check_claude_via_socks(socks_port: int) -> str:
         return "---"
 
 
-_fail_counts: dict[str, int] = {
-    "parse_error": 0,
-    "no_port": 0,
-    "proc_dead": 0,
-    "too_slow": 0,
-    "pass": 0,
-}
+def _read_singbox_errors(log_file) -> str:
+    log_file.flush()
+    log_file.seek(0)
+    text = log_file.read()
+    text = re.sub(r"\x1b\[[0-9;]*m", "", text)
+    error_lines = [line.strip() for line in text.splitlines() if line.strip()]
+    return " | ".join(error_lines[-3:])
 
 
 def test_config_tunnel(
-    config_line: str, singbox_path: str, socks_port: int
+    config_line: str, singbox_path: str, socks_port: int,
+    verify_tls_cert: bool = False,
+    on_failure: Callable[[str, str], None] | None = None,
 ) -> str | None:
+    def fail(category: str, detail: str = "") -> None:
+        if on_failure:
+            on_failure(category, detail)
+
     clean_env = {k: v for k, v in os.environ.items() if k not in PROXY_ENV_VARS}
     try:
-        cfg = generate_singbox_config(config_line, socks_port)
+        cfg = generate_singbox_config(config_line, socks_port, verify_tls_cert)
+    except UnsupportedTransportError as e:
+        fail("unsupported_transport", str(e))
+        return None
     except Exception as e:
-        logger.debug(f"Config generation failed: {e}")
-        _fail_counts["parse_error"] += 1
+        fail("config_error", f"{type(e).__name__}: {e}")
         return None
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as tmp:
@@ -366,28 +516,47 @@ def test_config_tunnel(
 
     proc = None
     try:
-        proc = subprocess.Popen(
-            [singbox_path, "run", "-c", cfg_path],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            env=clean_env,
-        )
-        if not _wait_for_socks_port(socks_port, SINGBOX_STARTUP_TIMEOUT):
-            _fail_counts["no_port"] += 1
-            return None
-        if proc.poll() is not None:
-            _fail_counts["proc_dead"] += 1
-            return None
-        speed = speedtest_via_socks(socks_port)
-        if speed < MIN_SPEED_MBPS:
-            _fail_counts["too_slow"] += 1
-            logger.debug(f"Too slow: {speed:.2f} Mbps — {config_line[:60]}")
-            return None
-        _fail_counts["pass"] += 1
-        marker = check_claude_via_socks(socks_port)
-        return set_name(config_line, f"{marker}{extract_name(config_line)}")
+        with tempfile.TemporaryFile(mode="w+t", encoding="utf-8") as stderr_log:
+            try:
+                proc = subprocess.Popen(
+                    [singbox_path, "run", "-c", cfg_path],
+                    stdout=subprocess.DEVNULL,
+                    stderr=stderr_log,
+                    env=clean_env,
+                )
+            except Exception as e:
+                fail("singbox_start_error", f"{type(e).__name__}: {e}")
+                return None
+            if not _wait_for_socks_port(socks_port, SINGBOX_STARTUP_TIMEOUT):
+                details = _read_singbox_errors(stderr_log)
+                category = classify_singbox_failure(details)
+                if category == "probe_error":
+                    category = "singbox_start_timeout"
+                elif category == "singbox_error":
+                    category = "singbox_start_error"
+                fail(category, details)
+                return None
+            if proc.poll() is not None:
+                details = _read_singbox_errors(stderr_log)
+                category = classify_singbox_failure(details)
+                fail("singbox_exit" if category == "probe_error" else category, details)
+                return None
+            probe = speedtest_via_socks_detailed(socks_port)
+            if probe.speed_mbps is None:
+                details = _read_singbox_errors(stderr_log)
+                category = classify_singbox_failure(details)
+                if category == "probe_error":
+                    category = "probe_error"
+                    details = probe.error or "no speed-test response"
+                fail(category, details)
+                return None
+            if probe.speed_mbps < MIN_SPEED_MBPS:
+                fail("too_slow", f"measured {probe.speed_mbps:.2f} Mbps")
+                return None
+            marker = check_claude_via_socks(socks_port)
+            return set_name(config_line, f"{marker}{extract_name(config_line)}")
     except Exception as e:
-        logger.debug(f"Tunnel test error: {e}")
+        fail("tunnel_test_error", f"{type(e).__name__}: {e}")
         return None
     finally:
         if proc and proc.poll() is None:
@@ -408,12 +577,14 @@ async def tunnel_filter(
     concurrency: int = TUNNEL_CONCURRENCY,
     log_every: int = 10,
     on_pass: callable = None,
+    verify_tls_cert: bool = False,
 ) -> list[str]:
     total = len(candidates)
     done = 0
     passed_count = 0
     semaphore = asyncio.Semaphore(concurrency)
     used_ports: set[int] = set()
+    diagnostics = FailureDiagnostics()
 
     logger.info(f"Tunnel test: {total} candidates, concurrency={concurrency}")
 
@@ -424,13 +595,14 @@ async def tunnel_filter(
                 used_ports.add(p)
                 return p
 
-    async def test_one(config: str) -> str | None:
+    async def test_one(config: str, executor: "concurrent.futures.ThreadPoolExecutor") -> str | None:
         nonlocal done, passed_count
         async with semaphore:
             port = get_port()
             loop = asyncio.get_running_loop()
             result = await loop.run_in_executor(
-                None, test_config_tunnel, config, singbox_path, port
+                executor, test_config_tunnel, config, singbox_path, port,
+                verify_tls_cert, diagnostics.record,
             )
             used_ports.discard(port)  # sing-box is dead by now; port is free to reuse
         done += 1
@@ -439,13 +611,22 @@ async def tunnel_filter(
             if on_pass:
                 on_pass(result)  # called in event loop — no threading issues
         if done % log_every == 0 or done == total:
-            fc = _fail_counts
+            fc, _ = diagnostics.snapshot()
+            summary = ", ".join(f"{name}={count}" for name, count in sorted(fc.items()))
             logger.info(
                 f"Tunnel test: {done}/{total} tested | {passed_count} passed | "
-                f"parse={fc['parse_error']} no_port={fc['no_port']} "
-                f"proc_dead={fc['proc_dead']} too_slow={fc['too_slow']}"
+                f"failures: {summary or 'none'}"
             )
         return result
 
-    results = await asyncio.gather(*[test_one(c) for c in candidates])
+    # loop.run_in_executor(None, ...) would use asyncio's default executor,
+    # which caps at min(32, cpu_count+4) threads — silently capping real
+    # concurrency below `concurrency` on any machine with <28 cores, no
+    # matter how high TUNNEL_CONCURRENCY is set. Size our own explicitly.
+    import concurrent.futures
+    with concurrent.futures.ThreadPoolExecutor(max_workers=concurrency) as executor:
+        results = await asyncio.gather(*[test_one(c, executor) for c in candidates])
+    _, examples = diagnostics.snapshot()
+    for category, example in sorted(examples.items()):
+        logger.info("Tunnel failure example [%s]: %s", category, example)
     return [r for r in results if r is not None]

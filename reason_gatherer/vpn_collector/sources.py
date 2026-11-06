@@ -4,7 +4,9 @@ import os
 import requests
 from pathlib import Path
 
-from vpn_collector.config import DEFAULT_SOURCES, SOURCES_FILE
+from vpn_collector.config import (
+    DEFAULT_SOURCES, SOURCES_FILE, SUBSCRIPTION_REPO_FETCH_CONCURRENCY,
+)
 from vpn_collector.parser import parse_configs_from_content, is_vpn_file
 
 logger = logging.getLogger(__name__)
@@ -20,6 +22,14 @@ def _clean_session() -> requests.Session:
     session = requests.Session()
     session.trust_env = False
     return session
+
+
+def _github_headers() -> dict:
+    """Authorization header for api.github.com calls only — never attach this
+    to raw.githubusercontent.com or arbitrary source URLs, or the token leaks
+    to whatever host those point at."""
+    token = os.environ.get("GITHUB_TOKEN")
+    return {"Authorization": f"token {token}"} if token else {}
 
 
 def _proxies_from_env() -> dict | None:
@@ -144,7 +154,7 @@ def sync_stars(username: str, sources_file: Path) -> int:
                 _clean_session(), "GET",
                 f"{GITHUB_API}/users/{username}/starred",
                 params={"per_page": 100, "page": page},
-                timeout=10,
+                timeout=10, headers=_github_headers(),
             )
             repos = resp.json()
             if not repos:
@@ -183,6 +193,105 @@ def fetch_url_configs(url: str) -> list[str]:
         return []
 
 
+def fetch_url_text(url: str) -> str | None:
+    """Fetch a successful HTTP response body, or return None for failed URLs."""
+    try:
+        resp = _request(_clean_session(), "GET", url, timeout=15)
+        if resp.status_code != 200:
+            logger.debug(f"URL {url} returned HTTP {resp.status_code}")
+            return None
+        return resp.text
+    except Exception as e:
+        logger.warning(f"Failed to fetch {url}: {e}")
+        return None
+
+
+def _is_text_source_path(path: str) -> bool:
+    """Keep docs and files whose names suggest links, providers, or sources."""
+    from pathlib import PurePosixPath
+
+    file_path = PurePosixPath(path)
+    suffix = file_path.suffix.lower()
+    name = file_path.name.lower()
+    if suffix in {".md", ".html", ".rst"} or name.startswith("readme"):
+        return True
+    if suffix not in {".txt", ".yaml", ".yml", ".json", ".conf", ".list", ".sub", ".toml"}:
+        return False
+    hints = ("sub", "source", "url", "link", "provider", "index", "config")
+    return any(hint in file_path.stem.lower() for hint in hints)
+
+
+def fetch_repo_texts(repo: str) -> list[str]:
+    """Fetch likely text files from a GitHub repo for link discovery."""
+    try:
+        session = _clean_session()
+        resp = _request(
+            session, "GET",
+            f"{GITHUB_API}/repos/{repo}/git/trees/HEAD",
+            params={"recursive": "1"},
+            timeout=15, headers=_github_headers(),
+        )
+        if resp.status_code != 200:
+            logger.warning(f"Trees API {resp.status_code} for {repo}")
+            return []
+
+        paths = [
+            item["path"] for item in resp.json().get("tree", [])
+            if item["type"] == "blob" and _is_text_source_path(item["path"])
+        ]
+        logger.info("Subscription discovery: fetching %d text files from %s", len(paths), repo)
+
+        def fetch_text(path: str) -> str | None:
+            try:
+                with _clean_session() as file_session:
+                    raw = _request(
+                        file_session, "GET",
+                        f"{GITHUB_RAW}/{repo}/HEAD/{path}", timeout=10,
+                    )
+                return raw.text if raw.status_code == 200 and raw.text else None
+            except Exception as e:
+                logger.debug(f"Skipped {repo}/{path}: {e}")
+
+        from concurrent.futures import ThreadPoolExecutor
+        texts: list[str] = []
+        with ThreadPoolExecutor(max_workers=SUBSCRIPTION_REPO_FETCH_CONCURRENCY) as executor:
+            for index, text in enumerate(executor.map(fetch_text, paths), 1):
+                if text:
+                    texts.append(text)
+                if index % 100 == 0 or index == len(paths):
+                    logger.info(
+                        "Subscription discovery: %s files %d/%d fetched",
+                        repo, index, len(paths),
+                    )
+        return texts
+    except Exception as e:
+        logger.warning(f"Failed to retrieve text from repo {repo}: {e}")
+        return []
+
+
+def fetch_source_texts(sources_file: Path) -> list[str]:
+    """Fetch source bodies for the independent subscription discovery mode."""
+    import asyncio
+    from vpn_collector.tg_source import fetch_all_tg_texts
+
+    sources = load_sources(sources_file)
+    texts: list[str] = []
+    channels: list[str] = []
+    for source in sources:
+        if source["type"] == "tg":
+            channels.append(source["value"])
+        elif source["type"] == "repo":
+            texts.extend(fetch_repo_texts(source["value"]))
+        else:
+            text = fetch_url_text(source["value"])
+            if text:
+                texts.append(text)
+
+    if channels:
+        texts.extend(asyncio.run(fetch_all_tg_texts(channels)))
+    return texts
+
+
 def fetch_repo_configs(repo: str) -> list[str]:
     try:
         session = _clean_session()
@@ -190,7 +299,7 @@ def fetch_repo_configs(repo: str) -> list[str]:
             session, "GET",
             f"{GITHUB_API}/repos/{repo}/git/trees/HEAD",
             params={"recursive": "1"},
-            timeout=15,
+            timeout=15, headers=_github_headers(),
         )
         if resp.status_code != 200:
             logger.warning(f"Trees API {resp.status_code} for {repo}")

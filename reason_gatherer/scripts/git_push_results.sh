@@ -30,6 +30,11 @@ rotate_in_git "recheck_*.txt"
 git add "${RESULTS_SUBPATH}/known_good.txt" \
         "${RESULTS_SUBPATH}"/run_*.txt \
         "${RESULTS_SUBPATH}"/recheck_*.txt 2>/dev/null || true
+if [[ -f "${RESULTS_SUBPATH}/subscriptions.txt" ]]; then
+    git add "${RESULTS_SUBPATH}/subscriptions.txt"
+fi
+git add "${RESULTS_SUBPATH}/subscription_configs.txt" \
+        "${RESULTS_SUBPATH}"/subscription_configs_*.txt 2>/dev/null || true
 
 # Update the results table in README.md.
 update_readme() {
@@ -40,6 +45,19 @@ update_readme() {
     # Build the table body lines.
     local table=""
     table+="| [**known_good.txt**](${RAW_BASE}/known_good.txt) | All verified configs ever collected — use as subscription URL |\n"
+    table+="| [**subscriptions.txt**](${RAW_BASE}/subscriptions.txt) | Third-party subscription URLs with at least one verified working node |\n"
+    if [[ -f "${RESULTS_SUBPATH}/subscription_configs.txt" ]]; then
+        table+="| [**subscription_configs.txt**](${RAW_BASE}/subscription_configs.txt) | Currently working configs from all saved subscription URLs |\n"
+    fi
+
+    for f in "${RESULTS_SUBPATH}"/subscription_configs_*.txt; do
+        [[ -f "$f" ]] || continue
+        local name index
+        name="$(basename "$f")"
+        index="${name#subscription_configs_}"
+        index="${index%.txt}"
+        table+="| [${name}](${RAW_BASE}/${name}) | Currently working configs from subscription row ${index} |\n"
+    done
 
     local labels=("Latest run" "Previous run" "Earlier run" "Earlier run" "Earlier run")
     local idx=0

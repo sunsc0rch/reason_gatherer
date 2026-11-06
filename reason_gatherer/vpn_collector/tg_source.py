@@ -100,3 +100,45 @@ async def fetch_all_tg_configs(channels: list[str], limit: int = TG_POSTS_LIMIT)
                     all_configs.append(c)
 
     return all_configs
+
+
+async def fetch_tg_channel_texts(client, channel: str, limit: int) -> list[str]:
+    """Return recent post bodies so callers can discover links as well as configs."""
+    try:
+        messages = await client.get_messages(channel, limit=limit)
+        return [msg.text for msg in messages if msg.text]
+    except Exception as e:
+        logger.warning(f"TG channel {channel}: {e}")
+        return []
+
+
+async def fetch_all_tg_texts(channels: list[str], limit: int = TG_POSTS_LIMIT) -> list[str]:
+    """Fetch recent Telegram post text; unavailable Telegram is non-fatal."""
+    try:
+        from telethon import TelegramClient
+    except ImportError:
+        logger.warning("Telethon not installed; skipping Telegram subscription discovery")
+        return []
+
+    if not is_tg_configured():
+        logger.warning("Telegram not configured; skipping Telegram subscription discovery")
+        return []
+
+    try:
+        auth = load_tg_auth()
+    except Exception as e:
+        logger.warning(f"Could not read Telegram auth for subscription discovery: {e}")
+        return []
+    if not auth or "api_id" not in auth or "api_hash" not in auth:
+        logger.warning("Telegram auth file is malformed; skipping Telegram subscription discovery")
+        return []
+
+    texts: list[str] = []
+    proxy = _telethon_proxy()
+    try:
+        async with TelegramClient(str(TG_SESSION_FILE), auth["api_id"], auth["api_hash"], proxy=proxy) as client:
+            for channel in channels:
+                texts.extend(await fetch_tg_channel_texts(client, channel, limit))
+    except Exception as e:
+        logger.warning(f"Failed to connect to Telegram for subscription discovery: {e}")
+    return texts

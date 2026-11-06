@@ -3,7 +3,11 @@ import base64
 import pytest
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
-from vpn_collector.tester import tcp_check, tcp_filter, find_singbox, generate_singbox_config
+from vpn_collector.tester import (
+    tcp_check, tcp_filter, find_singbox, generate_singbox_config,
+    UnsupportedTransportError, SpeedTestResult, speedtest_via_socks_detailed,
+    classify_singbox_failure,
+)
 
 VLESS1 = "vless://uuid1@1.2.3.4:443?type=tcp#Server1"
 TROJAN = "trojan://password@9.10.11.12:443?sni=example.com#TrojanServer"
@@ -89,6 +93,33 @@ class TestFindSingbox:
 
 
 class TestGenerateSingboxConfig:
+    def test_vless_httpupgrade_transport_preserves_host_and_path(self):
+        line = (
+            "vless://uuid@proxy.example:443?security=tls&sni=proxy.example"
+            "&type=httpupgrade&host=cdn.example.com&path=%2Fgateway#Node"
+        )
+
+        out = generate_singbox_config(line, socks_port=11012)["outbounds"][0]
+
+        assert out["transport"] == {
+            "type": "httpupgrade",
+            "host": "cdn.example.com",
+            "path": "/gateway",
+        }
+
+    def test_vless_xhttp_is_rejected_instead_of_silently_becoming_tcp(self):
+        line = "vless://uuid@proxy.example:443?security=tls&type=xhttp#Node"
+
+        with pytest.raises(UnsupportedTransportError, match="xhttp"):
+            generate_singbox_config(line, socks_port=11013)
+
+    def test_tls_certificate_validation_is_opt_in(self):
+        insecure_out = generate_singbox_config(VLESS_TLS, 11009)["outbounds"][0]
+        strict_out = generate_singbox_config(VLESS_TLS, 11009, verify_tls_cert=True)["outbounds"][0]
+
+        assert insecure_out["tls"]["insecure"] is True
+        assert "insecure" not in strict_out["tls"]
+
     def test_vless_structure(self):
         cfg = generate_singbox_config(VLESS_TLS, socks_port=11000)
         assert cfg["log"]["level"] == "error"
@@ -171,7 +202,7 @@ VLESS_TEST = "vless://some-uuid@host.com:443?type=tcp&security=tls&sni=host.com#
 
 class TestSpeedtestViaSocks:
     def test_returns_speed_in_mbps(self):
-        mock_resp = MagicMock()
+        mock_resp = MagicMock(status_code=200)
         mock_resp.iter_content.return_value = [b"x" * (1024 * 1024)]
         mock_resp.__enter__ = lambda s: s
         mock_resp.__exit__ = MagicMock(return_value=False)
@@ -190,6 +221,69 @@ class TestSpeedtestViaSocks:
             MockSession.return_value.__enter__ = lambda s: mock_session
             MockSession.return_value.__exit__ = MagicMock(return_value=False)
             assert speedtest_via_socks(12001) == 0.0
+
+    def test_distinguishes_probe_error_from_measured_zero_speed(self):
+        with patch("vpn_collector.tester.requests.Session") as MockSession:
+            mock_session = MagicMock()
+            mock_session.get.side_effect = ConnectionError("proxy failed")
+            MockSession.return_value.__enter__ = lambda s: mock_session
+            MockSession.return_value.__exit__ = MagicMock(return_value=False)
+
+            result = speedtest_via_socks_detailed(12007)
+
+        assert result.speed_mbps is None
+        assert "ConnectionError" in result.error
+
+    def test_reports_measured_low_speed(self):
+        mock_resp = MagicMock(status_code=200)
+        mock_resp.iter_content.return_value = [b"x" * 65536]
+        mock_resp.__enter__ = lambda s: s
+        mock_resp.__exit__ = MagicMock(return_value=False)
+        with patch("vpn_collector.tester.requests.Session") as MockSession, \
+             patch("vpn_collector.tester.time.time", side_effect=[0.0, 1.0, 1.0] * 3):
+            mock_session = MagicMock()
+            mock_session.get.return_value = mock_resp
+            MockSession.return_value.__enter__ = lambda s: mock_session
+            MockSession.return_value.__exit__ = MagicMock(return_value=False)
+
+            result = speedtest_via_socks_detailed(12008)
+
+        assert result.error is None
+        assert result.speed_mbps == pytest.approx(0.524288)
+
+    def test_http_error_is_reported_as_probe_error(self):
+        mock_resp = MagicMock(status_code=503)
+        mock_resp.__enter__ = lambda s: s
+        mock_resp.__exit__ = MagicMock(return_value=False)
+        with patch("vpn_collector.tester.SPEEDTEST_URLS", ["https://speed.example/test"]), \
+             patch("vpn_collector.tester.requests.Session") as MockSession:
+            mock_session = MagicMock()
+            mock_session.get.return_value = mock_resp
+            MockSession.return_value.__enter__ = lambda s: mock_session
+            MockSession.return_value.__exit__ = MagicMock(return_value=False)
+
+            result = speedtest_via_socks_detailed(12009)
+
+        assert result.speed_mbps is None
+        assert "HTTP 503" in result.error
+
+
+class TestFailureClassification:
+    def test_classifies_tls_certificate_errors(self):
+        assert classify_singbox_failure(
+            "tls: failed to verify certificate: x509: certificate has expired"
+        ) == "tls_certificate"
+
+    def test_classifies_transport_handshake_errors(self):
+        assert classify_singbox_failure(
+            "unexpected HTTP response status: 404"
+        ) == "transport_handshake"
+
+    def test_classifies_reality_handshake_errors(self):
+        assert classify_singbox_failure("reality verification failed") == "reality_handshake"
+
+    def test_classifies_nxdomain_errors(self):
+        assert classify_singbox_failure("lookup host.example: exchange4: NXDOMAIN") == "dns_error"
 
 
 class TestCheckClaudeViaSocks:
@@ -234,6 +328,20 @@ class TestCheckClaudeViaSocks:
 
 
 class TestTestConfigTunnel:
+    def test_reports_unsupported_transport_without_starting_singbox(self):
+        failures = []
+        line = "vless://uuid@host.example:443?type=xhttp#Node"
+        with patch("vpn_collector.tester.subprocess.Popen") as mock_popen:
+            result = test_config_tunnel(
+                line, "/usr/bin/sing-box", socks_port=13002,
+                on_failure=lambda category, detail: failures.append((category, detail)),
+            )
+
+        assert result is None
+        assert failures[0][0] == "unsupported_transport"
+        assert "xhttp" in failures[0][1]
+        mock_popen.assert_not_called()
+
     def test_returns_marked_config_on_success(self):
         mock_proc = MagicMock()
         mock_proc.poll.return_value = None
@@ -245,7 +353,7 @@ class TestTestConfigTunnel:
         mock_tmp.return_value.name = "/tmp/fake.json"
         with patch("vpn_collector.tester.generate_singbox_config", return_value={}), \
              patch("vpn_collector.tester.subprocess.Popen") as mock_popen, \
-             patch("vpn_collector.tester.speedtest_via_socks", return_value=5.0), \
+             patch("vpn_collector.tester.speedtest_via_socks_detailed", return_value=SpeedTestResult(5.0)), \
              patch("vpn_collector.tester.check_claude_via_socks", return_value="+++"), \
              patch("vpn_collector.tester._wait_for_socks_port", return_value=True), \
              patch("vpn_collector.tester.json.dump"), \
@@ -266,7 +374,7 @@ class TestTestConfigTunnel:
         mock_proc.poll.return_value = None
         with patch("vpn_collector.tester.generate_singbox_config", return_value={}), \
              patch("vpn_collector.tester.subprocess.Popen") as mock_popen, \
-             patch("vpn_collector.tester.speedtest_via_socks", return_value=0.3), \
+             patch("vpn_collector.tester.speedtest_via_socks_detailed", return_value=SpeedTestResult(0.3)), \
              patch("vpn_collector.tester._wait_for_socks_port", return_value=True), \
              patch("vpn_collector.tester.json.dump"), \
              patch("vpn_collector.tester.tempfile.NamedTemporaryFile") as mock_ntf, \

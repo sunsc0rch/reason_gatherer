@@ -14,6 +14,11 @@ from vpn_collector.config import (
 )
 from vpn_collector.parser import extract_host_port
 from vpn_collector.sources import fetch_all_configs, add_source, sync_stars
+from vpn_collector.sources import fetch_source_texts
+from vpn_collector.subscriptions import (
+    extract_subscription_urls, fetch_subscription_configs,
+    validate_subscription_urls,
+)
 from vpn_collector.tester import tcp_filter, tunnel_filter, find_singbox, test_config_tunnel
 from vpn_collector.storage import (
     load_known_hosts, load_known_good_hp, load_known_good_configs,
@@ -21,6 +26,7 @@ from vpn_collector.storage import (
     is_duplicate, save_config, rotate_run_files, trim_candidates, get_stats,
     load_config_meta, save_config_meta, update_meta_first_seen,
     load_privileged, save_privileged,
+    save_subscriptions, save_subscription_configs,
 )
 
 
@@ -349,6 +355,65 @@ def cmd_full(sample: int | None = None) -> None:
     cmd_test()
 
 
+def cmd_subscriptions() -> None:
+    """Discover source subscription links and replace the validated URL list."""
+    RESULTS_DIR.mkdir(exist_ok=True)
+    singbox_path = find_singbox()
+    if not singbox_path:
+        print("sing-box binary not found. Searched:")
+        for path in SINGBOX_SEARCH_PATHS:
+            print(f"  {path}")
+        sys.exit(1)
+
+    _log.info("Fetching source text for subscription URL discovery...")
+    source_texts = fetch_source_texts(SOURCES_FILE)
+    urls = extract_subscription_urls(source_texts)
+    _log.info("Discovered %d unique HTTP(S) URLs", len(urls))
+    working_urls = validate_subscription_urls(urls, singbox_path)
+    save_subscriptions(RESULTS_DIR, working_urls)
+    _log.info("Saved %d working subscription URLs → results/subscriptions.txt", len(working_urls))
+
+
+def cmd_test_subscriptions(subscription_index: int | None = None) -> None:
+    """Test configs inside saved subscription URLs, without touching known_good."""
+    subscriptions_file = RESULTS_DIR / "subscriptions.txt"
+    if not subscriptions_file.exists():
+        print("No subscriptions.txt found. Run --subscriptions first.")
+        sys.exit(1)
+
+    urls = [line.strip() for line in subscriptions_file.read_text(errors="replace").splitlines() if line.strip()]
+    if not urls:
+        print("subscriptions.txt contains no URLs.")
+        sys.exit(1)
+
+    if subscription_index is None:
+        selected_urls = list(dict.fromkeys(urls))
+    else:
+        if subscription_index < 1 or subscription_index > len(urls):
+            print(f"Subscription index must be between 1 and {len(urls)}.")
+            sys.exit(2)
+        selected_urls = [urls[subscription_index - 1]]
+        _log.info("Testing subscription %d/%d: %s", subscription_index, len(urls), selected_urls[0])
+
+    singbox_path = find_singbox()
+    if not singbox_path:
+        print("sing-box binary not found. Searched:")
+        for path in SINGBOX_SEARCH_PATHS:
+            print(f"  {path}")
+        sys.exit(1)
+    _log.info("Using sing-box: %s", singbox_path)
+
+    configs = fetch_subscription_configs(selected_urls)
+    if not configs:
+        _log.warning("No parseable configs found; previous subscription config snapshot left unchanged")
+        return
+
+    _log.info("Tunnel-testing %d unique configs with strict TLS verification", len(configs))
+    passed = asyncio.run(tunnel_filter(configs, singbox_path, verify_tls_cert=True))
+    output = save_subscription_configs(RESULTS_DIR, passed, subscription_index)
+    _log.info("Saved %d working configs → %s", len(passed), output)
+
+
 def cmd_stats() -> None:
     RESULTS_DIR.mkdir(exist_ok=True)
     stats = get_stats(RESULTS_DIR)
@@ -366,6 +431,9 @@ def main() -> None:
     mode.add_argument("--test", action="store_true", help="Tunnel test candidates.txt → known_good.txt")
     mode.add_argument("--full", action="store_true", help="Run --collect then --test")
     mode.add_argument("--recheck", action="store_true", help="Re-test known_good.txt → recheck_YYYY-MM-DD.txt (known_good untouched)")
+    mode.add_argument("--subscriptions", action="store_true", help="Discover and validate subscription URLs from configured sources")
+    mode.add_argument("--test-subscriptions", action="store_true", help="Test every config from saved subscription URLs → subscription_configs.txt")
+    mode.add_argument("--test-subscription", type=int, metavar="INDEX", help="Test one 1-based URL row from subscriptions.txt → subscription_configs_INDEX.txt")
     mode.add_argument("--stats", action="store_true", help="Show counts per result file")
     mode.add_argument("--setup-tg", action="store_true", help="Authenticate Telegram (interactive)")
     parser.add_argument("--add-source", metavar="SOURCE", help="Add GitHub repo (user/repo) or raw URL")
@@ -379,7 +447,9 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    if not any([args.collect, args.test, args.full, args.recheck, args.stats, args.add_source, args.sync_stars, args.setup_tg]):
+    if not any([args.collect, args.test, args.full, args.recheck, args.subscriptions,
+                args.test_subscriptions, args.test_subscription is not None,
+                args.stats, args.add_source, args.sync_stars, args.setup_tg]):
         parser.print_help()
         return
 
@@ -393,6 +463,12 @@ def main() -> None:
         cmd_full(sample=args.sample)
     elif args.recheck:
         cmd_recheck(update_known_good=args.update_known_good)
+    elif args.subscriptions:
+        cmd_subscriptions()
+    elif args.test_subscriptions:
+        cmd_test_subscriptions()
+    elif args.test_subscription is not None:
+        cmd_test_subscriptions(subscription_index=args.test_subscription)
     elif args.stats:
         cmd_stats()
     elif args.setup_tg:

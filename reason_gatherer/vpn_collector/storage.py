@@ -1,4 +1,5 @@
 import json
+import tempfile
 from datetime import date, datetime
 from pathlib import Path
 
@@ -7,10 +8,16 @@ from vpn_collector.parser import extract_host_port, is_vpn_line
 _NON_CONFIG_FILES = {"candidates.txt", "tcp_cache.txt"}
 
 
+def _is_subscription_config_snapshot(filename: str) -> bool:
+    return filename == "subscription_configs.txt" or (
+        filename.startswith("subscription_configs_") and filename.endswith(".txt")
+    )
+
+
 def load_known_hosts(results_dir: Path) -> set[str]:
     hosts: set[str] = set()
     for f in results_dir.glob("*.txt"):
-        if f.name in _NON_CONFIG_FILES:
+        if f.name in _NON_CONFIG_FILES or _is_subscription_config_snapshot(f.name):
             continue
         for line in f.read_text(errors="replace").splitlines():
             line = line.strip()
@@ -45,6 +52,42 @@ def rewrite_known_good(results_dir: Path, configs: list[str]) -> None:
         f.write(header + "\n")
         for line in configs:
             f.write(line + "\n")
+
+
+def save_subscriptions(results_dir: Path, urls: list[str]) -> None:
+    """Replace the discovered subscription URL list with current survivors."""
+    results_dir.mkdir(parents=True, exist_ok=True)
+    unique_urls = list(dict.fromkeys(url.strip() for url in urls if url.strip()))
+    output = results_dir / "subscriptions.txt"
+    output.write_text("".join(f"{url}\n" for url in unique_urls))
+
+
+def save_subscription_configs(
+    results_dir: Path, configs: list[str], subscription_index: int | None = None,
+) -> Path:
+    """Atomically replace the current aggregate or per-feed config snapshot."""
+    results_dir.mkdir(parents=True, exist_ok=True)
+    filename = (
+        f"subscription_configs_{subscription_index}.txt"
+        if subscription_index is not None
+        else "subscription_configs.txt"
+    )
+    output = results_dir / filename
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=results_dir,
+            prefix=f".{filename}.", suffix=".tmp", delete=False,
+        ) as temporary:
+            temporary_path = Path(temporary.name)
+            if configs:
+                temporary.write("\n".join(configs) + "\n")
+        temporary_path.replace(output)
+        temporary_path = None
+        return output
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
 
 
 def load_known_good_hp(results_dir: Path) -> set[tuple]:

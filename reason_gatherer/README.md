@@ -7,6 +7,9 @@ Scrapes free VPN configs from GitHub repositories, filters them by TCP reachabil
 | File | Description |
 |---|---|
 | [**known_good.txt**](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/known_good.txt) | All verified configs ever collected — use as subscription URL |
+| [**subscriptions.txt**](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/subscriptions.txt) | Third-party subscription URLs with at least one tunnel-tested node |
+| [**subscription_configs.txt**](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/subscription_configs.txt) | Currently working configs fetched from all saved subscription URLs |
+| [subscription_configs_5.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/subscription_configs_5.txt) | Currently working configs from subscription row 5 |
 | [run_2026-10-31.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-10-31.txt) | Latest run |
 | [run_2026-10-22.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-10-22.txt) | Previous run |
 | [run_2026-10-09.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-10-09.txt) | Earlier run |
@@ -109,6 +112,15 @@ pip install -r requirements.txt
 # Full run: fetch → TCP filter → tunnel test
 python -m vpn_collector.main --full
 
+# Discover third-party subscription URLs in configured sources and keep only those with a working node
+python -m vpn_collector.main --subscriptions
+
+# Test all configs from saved subscription URLs (strict TLS) → subscription_configs.txt
+python -m vpn_collector.main --test-subscriptions
+
+# Test one 1-based row from subscriptions.txt → subscription_configs_3.txt
+python -m vpn_collector.main --test-subscription 3
+
 # Step by step:
 python -m vpn_collector.main --collect        # fetch and TCP-filter → candidates.txt
 python -m vpn_collector.main --test           # tunnel-test candidates.txt → known_good.txt
@@ -138,6 +150,9 @@ python -m vpn_collector.main --stats
 ```
 results/
 ├── known_good.txt           # all verified configs ever found (never deleted)
+├── subscriptions.txt        # discovered third-party subscription URLs with live nodes
+├── subscription_configs.txt # current working configs from all saved subscriptions
+├── subscription_configs_N.txt # current working configs from one selected subscription
 ├── run_YYYY-MM-DD.txt       # up to 5 dated run files (oldest auto-deleted)
 ├── recheck_YYYY-MM-DD.txt   # on-demand recheck results from known_good
 ├── candidates.txt           # TCP-passed queue (intermediate, not tracked in git)
@@ -145,6 +160,9 @@ results/
 ```
 
 `known_good.txt` is never overwritten. Paste the raw URL into Throne / Hiddify as a subscription source.
+`subscriptions.txt` contains external subscription URLs discovered in the configured sources and validated through at least one working tunnel. Refresh it independently with `python -m vpn_collector.main --subscriptions`.
+`--test-subscriptions` downloads every saved feed, tests all unique parsed configs with TLS certificate validation enabled, and replaces `subscription_configs.txt` with the passing configs. To test only one entry, pass its 1-based row number from `subscriptions.txt` to `--test-subscription`; that run writes `subscription_configs_N.txt` and leaves the aggregate file alone. These outputs are snapshots, refreshed only when the corresponding flag completes successfully.
+Tunnel scan progress now separates certificate, Reality handshake, transport handshake, endpoint connection, speed-probe, measured-low-speed, and unsupported-transport failures. Upstream sing-box supports HTTPUpgrade but not XHTTP; XHTTP links are reported as unsupported and are not tested as TCP. See the [sing-box V2Ray transport reference](https://sing-box.sagernet.org/configuration/shared/v2ray-transport/).
 
 ## Telegram sources
 
@@ -185,6 +203,10 @@ All tunable parameters are in `vpn_collector/config.py`:
 | `SINGBOX_STARTUP_TIMEOUT` | 3.0s | Max wait for sing-box SOCKS port |
 | `SPEEDTEST_EARLY_ABORT_AFTER` | 4.0s | Early abort speedtest after this many seconds |
 | `SPEEDTEST_EARLY_ABORT_FACTOR` | 0.5 | Abort if speed < factor × MIN_SPEED_MBPS |
+| `SUBSCRIPTION_MAX_URLS` | 100 | Check at most the first 100 unique HTTP(S) URLs found per `--subscriptions` run |
+| `SUBSCRIPTION_MAX_NODES` | 30 | Tunnel-test at most the first 30 parsed nodes from each subscription |
+| `SUBSCRIPTION_NODE_BATCH_SIZE` | 10 | Stop checking a subscription after its first passing group of 10 nodes |
+| `SUBSCRIPTION_REPO_FETCH_CONCURRENCY` | 10 | Parallel GitHub text-file fetches during subscription discovery |
 
 ## Auto-push
 
