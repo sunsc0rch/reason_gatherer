@@ -23,7 +23,7 @@ from vpn_collector.subscriptions import (
 )
 from vpn_collector.tester import (
     tcp_filter, tunnel_filter, find_singbox, test_config_tunnel,
-    classify_endpoints,
+    classify_endpoints, socks5_connect,
 )
 from vpn_collector.storage import (
     load_known_hosts, load_known_good_hp, load_known_good_configs,
@@ -419,22 +419,49 @@ def cmd_test_subscriptions(subscription_index: int | None = None) -> None:
     _log.info("Saved %d working configs → %s", len(passed), output)
 
 
-def _warp_is_connected() -> bool:
-    """True if the Cloudflare WARP tunnel is up (its probes bypass the ISP).
+def _warp_tunnel_active() -> bool:
+    """True if WARP is connected in a *system-tunnel* mode (not SOCKS proxy).
 
+    In `proxy` mode WARP only listens on a local SOCKS port, so probes still
+    travel the normal ISP path and the diagnosis stays honest. In a tunnel
+    mode every packet is carried out of the access network and every endpoint
+    looks reachable, which silently invalidates the results.
     Best-effort: returns False when warp-cli is absent or errors out.
     """
     try:
         out = subprocess.run(
-            ["warp-cli", "--accept-tos", "status"],
+            ["warp-cli", "--accept-tos", "settings"],
             capture_output=True, text=True, timeout=5,
         )
     except (FileNotFoundError, subprocess.SubprocessError, OSError):
         return False
-    return "Connected" in (out.stdout + out.stderr)
+    text = out.stdout + out.stderr
+    if "Connected" not in subprocess.run(
+        ["warp-cli", "--accept-tos", "status"],
+        capture_output=True, text=True, timeout=5,
+    ).stdout:
+        return False
+    mode_line = next((ln for ln in text.splitlines() if "Mode:" in ln), "")
+    # "Mode: WarpProxy on port 40000" is harmless; "Warp", "Warp+doh", … tunnel.
+    return bool(mode_line) and "Proxy" not in mode_line
 
 
-def cmd_diagnose(sample: int | None = None, args_file: str | None = None) -> None:
+def _parse_proxy(value: str | None) -> tuple[str, int] | None:
+    """Parse "HOST:PORT" into a SOCKS5 endpoint; None when not given."""
+    if not value:
+        return None
+    try:
+        host, _, port = value.rpartition(":")
+        return host.strip("[]"), int(port)
+    except (ValueError, AttributeError):
+        raise SystemExit(f"Invalid --proxy {value!r}: expected HOST:PORT")
+
+
+def cmd_diagnose(
+    sample: int | None = None,
+    args_file: str | None = None,
+    proxy: tuple[str, int] | None = None,
+) -> None:
     """Split TCP-unreachable endpoints into ISP-blackholed vs dead servers.
 
     Reads candidates/known_good configs, TCP-checks them, then runs the
@@ -481,22 +508,38 @@ def cmd_diagnose(sample: int | None = None, args_file: str | None = None) -> Non
         print("All endpoints reachable — nothing to diagnose.")
         return
 
-    _log.info("Blackhole probe (TTL-capped ping) on unreachable endpoints...")
-    if _warp_is_connected():
-        _log.warning(
-            "WARP is connected — probes will ride the tunnel and every endpoint "
-            "will look reachable. Disconnect WARP for an honest diagnosis."
+    evidence = "TTL-capped ping (silent at 5/8/12 = dropped inside access network)"
+    if proxy is not None:
+        _log.info(
+            f"SOCKS5 egress {proxy[0]}:{proxy[1]} — an endpoint that answers "
+            "through it but not directly is ISP-blocked (definitive)"
         )
-    verdicts = asyncio.run(classify_endpoints(unreachable))
+        if not asyncio.run(socks5_connect(proxy[0], proxy[1], "1.1.1.1", 443, 5.0)):
+            _log.warning("SOCKS egress is not usable; falling back to ping probes")
+            proxy = None
+        else:
+            evidence = (
+                f"SOCKS5 egress {proxy[0]}:{proxy[1]} reachable while direct times out "
+                "(definitive); ping probe as fallback"
+            )
+    _log.info(f"Evidence: {evidence}")
+    if _warp_tunnel_active():
+        _log.warning(
+            "WARP is active in system-tunnel mode — probes will ride the tunnel "
+            "and every endpoint will look reachable. Use 'warp-cli mode proxy' "
+            "or disconnect WARP for an honest diagnosis."
+        )
+    verdicts = asyncio.run(classify_endpoints(unreachable, proxy=proxy))
 
     counts: Counter = Counter(verdicts.values())
     tag = Path(source).stem  # e.g. "recheck_2026-11-04"
     out_file = RESULTS_DIR / f"diagnose_{tag}_{date.today().isoformat()}.txt"
     with open(out_file, "w") as fh:
         fh.write(f"# blackhole diagnosis {source.name} {date.today().isoformat()}\n")
-        fh.write("# blocked_by_isp = packet dies in our access network (silent at TTL 5/8/12):\n")
-        fh.write("#   the endpoint is unreachable *from here* regardless of server state —\n")
-        fh.write("#   a host may be blackholed locally AND dead at the same time.\n")
+        fh.write(f"# evidence: {evidence}\n")
+        fh.write("# blocked_by_isp = the packet never leaves our access network:\n")
+        fh.write("#   unreachable *from here* regardless of server state — a host may be\n")
+        fh.write("#   blackholed locally AND dead at the same time (check abroad to separate).\n")
         fh.write("# server_dead    = a router answered, so the route is clear and the host\n")
         fh.write("#   or port simply does not answer.\n")
         for status in ("blocked_by_isp", "server_dead", "unknown"):
@@ -538,6 +581,9 @@ def main() -> None:
     parser.add_argument("--sync-stars", metavar="USERNAME", help="Sync GitHub starred repos")
     parser.add_argument("--sample", type=int, metavar="N",
                         help="Randomly sample N configs before TCP filter (e.g. --sample 30000)")
+    parser.add_argument("--proxy", metavar="HOST:PORT",
+                        help="--diagnose only: SOCKS5 egress to prove an endpoint is "
+                             "ISP-blocked rather than dead (e.g. WARP 127.0.0.1:40000)")
     parser.add_argument(
         "--update-known-good",
         action="store_true",
@@ -570,7 +616,8 @@ def main() -> None:
     elif args.stats:
         cmd_stats()
     elif args.diagnose is not None:
-        cmd_diagnose(sample=args.sample, args_file=args.diagnose or None)
+        cmd_diagnose(sample=args.sample, args_file=args.diagnose or None,
+                     proxy=_parse_proxy(args.proxy))
     elif args.setup_tg:
         cmd_setup_tg()
     elif args.add_source:

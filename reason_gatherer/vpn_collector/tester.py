@@ -85,6 +85,67 @@ def classify_singbox_failure(log_text: str) -> str:
     return "singbox_error" if log_text.strip() else "probe_error"
 
 
+def _socks_address(host: str) -> bytes:
+    """SOCKS5 ATYP payload: IPv4/IPv6 as raw addresses, names as a domain.
+
+    WARP's SOCKS proxy rejects an IP literal passed as a domain name, so the
+    numeric case must be detected here rather than always sending ATYP=DOMAIN.
+    """
+    try:
+        return b"\x01" + socket.inet_aton(host)
+    except OSError:
+        pass
+    try:
+        return b"\x04" + socket.inet_pton(socket.AF_INET6, host)
+    except OSError:
+        raw = host.encode()
+        return b"\x03" + bytes([len(raw)]) + raw
+
+
+async def socks5_connect(
+    proxy_host: str,
+    proxy_port: int,
+    host: str,
+    port: int,
+    timeout: float = TCP_TIMEOUT,
+) -> bool:
+    """Open a TCP stream to host:port through a SOCKS5 proxy. True if CONNECT succeeded."""
+    try:
+        reader, writer = await asyncio.wait_for(
+            asyncio.open_connection(proxy_host, proxy_port), timeout
+        )
+    except Exception:
+        return False
+    try:
+        writer.write(b"\x05\x01\x00")  # version 5, 1 method, no-auth
+        await writer.drain()
+        if await asyncio.wait_for(reader.readexactly(2), timeout) != b"\x05\x00":
+            return False
+        writer.write(b"\x05\x01\x00" + _socks_address(host) + port.to_bytes(2, "big"))
+        await writer.drain()
+        head = await asyncio.wait_for(reader.readexactly(4), timeout)
+        if head[1] != 0:  # REP != 0 → proxy refused/unreachable
+            return False
+        # Consume the bound address so the stream stays in sync for the caller.
+        atyp = head[3]
+        if atyp == 1:
+            await asyncio.wait_for(reader.readexactly(4 + 2), timeout)
+        elif atyp == 4:
+            await asyncio.wait_for(reader.readexactly(16 + 2), timeout)
+        elif atyp == 3:
+            n = (await asyncio.wait_for(reader.readexactly(1), timeout))[0]
+            await asyncio.wait_for(reader.readexactly(n + 2), timeout)
+        return True
+    except Exception:
+        return False
+    finally:
+        try:
+            writer.close()
+            await writer.wait_closed()
+        except Exception:
+            pass
+
+
 async def tcp_check(host: str, port: int, timeout: float = TCP_TIMEOUT) -> bool:
     try:
         reader, writer = await asyncio.wait_for(
@@ -160,10 +221,23 @@ async def blackhole_probe(
     return None if saw_error else True
 
 
-async def classify_endpoint(host: str, port: int, timeout: float = TCP_TIMEOUT) -> str:
-    """Endpoint verdict: "alive", "blocked_by_isp", "server_dead" or "unknown"."""
+async def classify_endpoint(
+    host: str,
+    port: int,
+    timeout: float = TCP_TIMEOUT,
+    proxy: tuple[str, int] | None = None,
+) -> str:
+    """Endpoint verdict: "alive", "blocked_by_isp", "server_dead" or "unknown".
+
+    With a working SOCKS egress (`proxy`) the verdict is definitive: the same
+    endpoint that times out directly and answers through the proxy cannot be
+    dead — the destination IP is dropped on our access network. Without a
+    proxy the TTL-capped ping probe is the fallback evidence.
+    """
     if await tcp_check(host, port, timeout):
         return "alive"
+    if proxy is not None and await socks5_connect(proxy[0], proxy[1], host, port, timeout):
+        return "blocked_by_isp"
     blackholed = await blackhole_probe(host)
     if blackholed is True:
         return "blocked_by_isp"
@@ -176,13 +250,14 @@ async def classify_endpoints(
     endpoints: list[tuple],
     concurrency: int = TCP_CONCURRENCY,
     timeout: float = TCP_TIMEOUT,
+    proxy: tuple[str, int] | None = None,
 ) -> dict[tuple, str]:
     """Classify every host:port (typically the ones that failed tcp_check)."""
     semaphore = asyncio.Semaphore(min(concurrency, 32))  # ping probes are cheap but bounded
 
     async def one(hp: tuple) -> tuple[tuple, str]:
         async with semaphore:
-            return hp, await classify_endpoint(hp[0], hp[1], timeout)
+            return hp, await classify_endpoint(hp[0], hp[1], timeout, proxy=proxy)
 
     results = await asyncio.gather(*[one(hp) for hp in endpoints])
     return dict(results)

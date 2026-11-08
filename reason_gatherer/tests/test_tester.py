@@ -7,6 +7,7 @@ from vpn_collector.tester import (
     tcp_check, tcp_filter, find_singbox, generate_singbox_config,
     UnsupportedTransportError, SpeedTestResult, speedtest_via_socks_detailed,
     classify_singbox_failure, blackhole_probe, classify_endpoint, classify_endpoints,
+    socks5_connect,
 )
 
 VLESS1 = "vless://uuid1@1.2.3.4:443?type=tcp#Server1"
@@ -484,7 +485,7 @@ class TestClassifyEndpoint:
 
     @pytest.mark.asyncio
     async def test_classify_endpoints_maps_every_endpoint(self):
-        async def fake_classify(host, port, timeout=4.0):
+        async def fake_classify(host, port, timeout=4.0, proxy=None):
             return {"1.1.1.1": "blocked_by_isp", "2.2.2.2": "server_dead"}[host]
 
         with patch("vpn_collector.tester.classify_endpoint", fake_classify):
@@ -493,3 +494,144 @@ class TestClassifyEndpoint:
             ("1.1.1.1", 443): "blocked_by_isp",
             ("2.2.2.2", 80): "server_dead",
         }
+
+    @pytest.mark.asyncio
+    async def test_proxy_is_forwarded_to_every_endpoint(self):
+        seen = []
+
+        async def fake_classify(host, port, timeout=4.0, proxy=None):
+            seen.append(proxy)
+            return "blocked_by_isp"
+
+        with patch("vpn_collector.tester.classify_endpoint", fake_classify):
+            await classify_endpoints(
+                [("1.1.1.1", 443), ("2.2.2.2", 80)],
+                proxy=("127.0.0.1", 40000),
+            )
+        assert seen == [("127.0.0.1", 40000), ("127.0.0.1", 40000)]
+
+
+class TestSocks5Connect:
+    @staticmethod
+    async def _serve(handler, port=0):
+        """Start a scripted SOCKS5 server; returns (host, port, server)."""
+        server = await asyncio.start_server(handler, "127.0.0.1", port)
+        return server
+
+    @pytest.mark.asyncio
+    async def test_success_when_proxy_replies_rep_zero(self):
+        async def handler(reader, writer):
+            assert await reader.readexactly(3) == b"\x05\x01\x00"
+            writer.write(b"\x05\x00"); await writer.drain()
+            await reader.readexactly(4 + 4 + 2)  # connect request to an IPv4
+            writer.write(b"\x05\x00\x00\x01\x7f\x00\x00\x01\x00\x00")
+            await writer.drain()
+            writer.close()
+
+        server = await self._serve(handler)
+        port = server.sockets[0].getsockname()[1]
+        try:
+            assert await socks5_connect("127.0.0.1", port, "1.2.3.4", 443, timeout=2.0) is True
+        finally:
+            server.close(); await server.wait_closed()
+
+    @pytest.mark.asyncio
+    async def test_failure_when_proxy_replies_nonzero_rep(self):
+        async def handler(reader, writer):
+            await reader.readexactly(3)
+            writer.write(b"\x05\x00"); await writer.drain()
+            await reader.readexactly(4 + 4 + 2)
+            writer.write(b"\x05\x05\x00\x01\x00\x00\x00\x00\x00\x00")  # REP=5 refused
+            await writer.drain()
+            writer.close()
+
+        server = await self._serve(handler)
+        port = server.sockets[0].getsockname()[1]
+        try:
+            assert await socks5_connect("127.0.0.1", port, "1.2.3.4", 443, timeout=2.0) is False
+        finally:
+            server.close(); await server.wait_closed()
+
+    @pytest.mark.asyncio
+    async def test_failure_when_nothing_listens(self):
+        assert await socks5_connect("127.0.0.1", 1, "1.2.3.4", 443, timeout=0.5) is False
+
+    @pytest.mark.asyncio
+    async def test_rejects_malformed_greeting(self):
+        async def handler(reader, writer):
+            await reader.readexactly(3)
+            writer.write(b"\x05\xff"); await writer.drain()  # no acceptable method
+            writer.close()
+
+        server = await self._serve(handler)
+        port = server.sockets[0].getsockname()[1]
+        try:
+            assert await socks5_connect("127.0.0.1", port, "1.2.3.4", 443, timeout=2.0) is False
+        finally:
+            server.close(); await server.wait_closed()
+
+    @pytest.mark.asyncio
+    async def test_domain_atyp_used_for_hostnames(self):
+        seen = {}
+
+        async def handler(reader, writer):
+            await reader.readexactly(3)
+            writer.write(b"\x05\x00"); await writer.drain()
+            head = await reader.readexactly(4)
+            seen["atyp"] = head[3]
+            n = (await reader.readexactly(1))[0]
+            seen["name"] = (await reader.readexactly(n)).decode()
+            await reader.readexactly(2)
+            writer.write(b"\x05\x00\x00\x01\x7f\x00\x00\x01\x00\x00")
+            await writer.drain()
+            writer.close()
+
+        server = await self._serve(handler)
+        port = server.sockets[0].getsockname()[1]
+        try:
+            assert await socks5_connect("127.0.0.1", port, "example.com", 443, timeout=2.0) is True
+        finally:
+            server.close(); await server.wait_closed()
+        assert seen == {"atyp": 3, "name": "example.com"}
+
+    @pytest.mark.asyncio
+    async def test_ip_atyp_used_for_ip_literals(self):
+        # WARP's SOCKS proxy refuses an IP literal encoded as a domain name.
+        seen = {}
+
+        async def handler(reader, writer):
+            await reader.readexactly(3)
+            writer.write(b"\x05\x00"); await writer.drain()
+            head = await reader.readexactly(4)
+            seen["atyp"] = head[3]
+            await reader.readexactly(4 + 2)
+            writer.write(b"\x05\x00\x00\x01\x7f\x00\x00\x01\x00\x00")
+            await writer.drain()
+            writer.close()
+
+        server = await self._serve(handler)
+        port = server.sockets[0].getsockname()[1]
+        try:
+            assert await socks5_connect("127.0.0.1", port, "10.20.30.40", 8443, timeout=2.0) is True
+        finally:
+            server.close(); await server.wait_closed()
+        assert seen["atyp"] == 1
+
+    @pytest.mark.asyncio
+    async def test_proxy_verdict_wins_over_ping(self):
+        """Directly unreachable but reachable via proxy ⇒ blocked, not dead."""
+        with patch("vpn_collector.tester.tcp_check", AsyncMock(return_value=False)), \
+             patch("vpn_collector.tester.socks5_connect", AsyncMock(return_value=True)), \
+             patch("vpn_collector.tester.blackhole_probe",
+                   AsyncMock(return_value=False)) as probe:
+            verdict = await classify_endpoint("1.2.3.4", 443, proxy=("127.0.0.1", 40000))
+        assert verdict == "blocked_by_isp"
+        probe.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_proxy_failing_falls_back_to_ping(self):
+        with patch("vpn_collector.tester.tcp_check", AsyncMock(return_value=False)), \
+             patch("vpn_collector.tester.socks5_connect", AsyncMock(return_value=False)), \
+             patch("vpn_collector.tester.blackhole_probe", AsyncMock(return_value=False)):
+            verdict = await classify_endpoint("1.2.3.4", 443, proxy=("127.0.0.1", 40000))
+        assert verdict == "server_dead"
