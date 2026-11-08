@@ -98,6 +98,29 @@ GitHub repos / raw URLs / Telegram channels
   run_YYYY-MM-DD.txt               — dated run file (last 5 kept)
 ```
 
+### Why "unreachable" needs a diagnosis
+
+A plain TCP timeout means three different things: a dead server, a closed
+port, or the ISP swallowing the packet by destination IP. They are told apart
+by `--diagnose`, which reports `blocked_by_isp` vs `server_dead` per endpoint:
+
+- **TTL-capped ping** — a live-but-ICMP-silent host still yields a
+  *Time-to-live-exceeded* answer from an intermediate router at TTL 5, while a
+  blackholed IP stays silent at TTL 5/8/12: the packet dies inside the access
+  network, before the first hop that would answer. Evidence is inferred.
+- **SOCKS5 egress (`--proxy`)** — the same endpoint that times out directly
+  and completes a TCP CONNECT through a proxy cannot be dead. Evidence is
+  conclusive, and it is ~2× faster than the ping sweep.
+
+The diagnosis is local: `blocked_by_isp` says nothing about whether the host
+is alive — it may be blackholed *and* dead at the same time. Check from
+another network (or via check-host.net) to separate those.
+
+WARP note: `warp-cli mode warp` routes the whole system through the tunnel, so
+every probe looks alive and the report degenerates. `warp-cli mode proxy`
+keeps traffic direct while exposing a local SOCKS5 (default
+`127.0.0.1:40000`), which is exactly what `--proxy` wants.
+
 ## Requirements
 
 - Python 3.10+
@@ -132,6 +155,15 @@ python -m vpn_collector.main --full    --sample 50000
 
 # Re-verify existing known_good configs (check if still alive)
 python -m vpn_collector.main --recheck        # → recheck_YYYY-MM-DD.txt (known_good untouched)
+
+# Diagnose WHY endpoints are unreachable: ISP destination-IP block vs dead server
+python -m vpn_collector.main --diagnose                              # broadest recheck file
+python -m vpn_collector.main --diagnose results/recheck_2026-11-04.txt
+python -m vpn_collector.main --diagnose --proxy 127.0.0.1:40000      # SOCKS5 egress → proof
+# → results/diagnose_<source>_<date>.txt with a status per endpoint:
+#   blocked_by_isp  packet never leaves the access network (blackholed destination IP)
+#   server_dead     route is clear, host/port just does not answer
+#   unknown         neither probe could decide (no ping / bad name)
 
 # Manage sources
 python -m vpn_collector.main --add-source user/repo          # add GitHub repo
