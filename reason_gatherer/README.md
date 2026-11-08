@@ -121,6 +121,79 @@ every probe looks alive and the report degenerates. `warp-cli mode proxy`
 keeps traffic direct while exposing a local SOCKS5 (default
 `127.0.0.1:40000`), which is exactly what `--proxy` wants.
 
+## WARP integration: warp-cli, Throne, zapret
+
+Three independent pieces on this box; they run side by side.
+
+### warp-cli — SOCKS egress for probing
+
+- `warp-cli mode proxy` → local SOCKS5 `127.0.0.1:40000`, consumed by
+  `--proxy`. Transport is MASQUE (QUIC/HTTP3, UDP 443 → Cloudflare anycast),
+  not WireGuard: `warp-cli settings` shows `WARP tunnel protocol: MASQUE`.
+- Honest A/B on one 227-config pool, one-minute interval: **8 configs /
+  6 endpoints direct vs 147 / 13 through WARP**. All 12 revived endpoints
+  were `blocked_by_isp`; 5 of the 17 stayed dead even via WARP (blackholed
+  *and* dead at once).
+
+### Throne — system proxy with built-in WARP
+
+Throne serves the system proxy (mixed inbound `127.0.0.1:2080`,
+`system_proxy_enabled=true`) and ships its own WARP client (Routing
+Settings → Warp tab, setting `enable_warp`; upstream
+[throneproj/Throne](https://github.com/throneproj/Throne)). Two different
+uses — pick by what you need:
+
+1. **WARP as egress (whitening).** Warp tab → Mode **MASQUE** →
+   *Generate Warp Config* (registers a Cloudflare device; the MASQUE
+   identity is separate from the WireGuard one already stored) →
+   *Enable Warp*. Generated topology is `app → node → WARP → target`:
+   `generate.cpp` prepends the synthetic warp profile and points the node
+   outbound's `detour` at it, so the **node dial stays direct** and only
+   the exit IP becomes Cloudflare. Does *not* unblock `blocked_by_isp`
+   nodes.
+2. **WARP as ingress (reach blackholed nodes).** Add a profile of type
+   `socks` → `127.0.0.1:40000` (warp-cli proxy mode), then
+   Group → Edit Group → **Front Proxy** → select it. The front proxy is
+   appended after the main hop and becomes its dialer:
+   `local → WARP(SOCKS) → node → target`. The node becomes reachable
+   through the blackhole while the exit IP stays the node's. A native
+   `masque` profile (profile editor → *Register a new Cloudflare WARP
+   device*) can replace the warp-cli SOCKS hop if you don't want a second
+   WARP client.
+
+For headless control turn on the Throne API (Preferences → Integration
+Settings) and drive it with `thronectl` (`settings set enable_warp=…`,
+`call POST /v1/warp/register`, …). It is off by default and `thronectl`
+refuses to work without an API key.
+
+### zapret — fuse for the WARP transport
+
+zapret already queues this box's own UDP/443 (nft `postnat`:
+`udp dport 443 ct original packets 1-9 … queue to 200`), so warp-svc's
+MASQUE packets were reaching nfqws all along — only a matching rule was
+missing. Added to the head of `NFQWS_OPT` in `/opt/zapret/config`
+(backup `config.backup-warp-20261108-*`):
+
+```
+--filter-udp=443 --hostlist-domains=cloudflareclient.com --dpi-desync=fake --dpi-desync-repeats=6 --dpi-desync-fake-quic=/opt/zapret/files/fake/quic_6.bin --new
+--filter-tcp=443 --hostlist-domains=cloudflareclient.com --dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,midsld --dpi-desync-repeats=6 --dpi-desync-fake-tls=/opt/zapret/files/fake/tls_clienthello_www_google_com.bin --dpi-desync-fooling=badsum --new
+```
+
+`sudo systemctl restart zapret` picks it up. Verified after the restart:
+`curl --socks5-hostname 127.0.0.1:40000 https://www.cloudflare.com/cdn-cgi/trace`
+still answers `warp=on`, Throne's inbound still returns 204, direct
+traffic unaffected.
+
+What the fuse covers — and what it does not:
+
+| Block vector | zapret |
+|---|---|
+| DPI parses the QUIC Initial / TLS ClientHello and bans SNI `*.cloudflareclient.com` | **defeated** — fake QUIC/TLS packets poison DPI state before the real SNI is readable |
+| destination-IP blackhole of `engage.cloudflareclient.com` (documented in the wild, e.g. `162.159.192.0/23`) | **not covered** — the packet dies before nfqws; change the endpoint (`warp_masque_ep` / `warp_api_hosts`) or carry WARP over another proxy |
+| per-IP throttling (RU ISPs have throttled Cloudflare to 16 KB/conn since 2025-06-09) | **not covered** — measured on this box: 10 MB through WARP 3.17 MB/s vs 3.25 MB/s direct, so the tunnel is not throttled yet |
+
+Revert: `sudo cp /opt/zapret/config.backup-warp-<timestamp> /opt/zapret/config && sudo systemctl restart zapret`.
+
 ## Requirements
 
 - Python 3.10+
