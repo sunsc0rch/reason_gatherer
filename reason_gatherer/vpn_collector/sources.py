@@ -350,7 +350,11 @@ def fetch_all_configs(sources_file: Path) -> list[str]:
 
     tg_channels = [s["value"] for s in sources if s["type"] == "tg"]
     if tg_channels:
-        tg_configs = asyncio.run(fetch_all_tg_configs(tg_channels))
+        try:
+            tg_configs = asyncio.run(fetch_all_tg_configs(tg_channels))
+        except Exception as e:
+            logger.warning("Telegram source failed; skipping Telegram and continuing: %s", e)
+            tg_configs = []
         for c in tg_configs:
             if c not in seen:
                 seen.add(c)

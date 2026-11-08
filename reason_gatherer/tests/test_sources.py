@@ -4,7 +4,7 @@ from threading import Barrier
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 from vpn_collector.sources import (
-    load_sources, save_sources, add_source, fetch_repo_texts,
+    load_sources, save_sources, add_source, fetch_repo_texts, fetch_all_configs,
     sync_stars, fetch_url_configs, fetch_repo_configs, _is_fetchable,
 )
 
@@ -97,7 +97,7 @@ class TestSyncStars:
             [],
         ]
         mock_resp.status_code = 200
-        mock_session.get.return_value = mock_resp
+        mock_session.request.return_value = mock_resp
         mock_clean_session.return_value = mock_session
         assert sync_stars("testuser", sources_file) == 2
 
@@ -108,7 +108,7 @@ class TestSyncStars:
         mock_resp = MagicMock()
         mock_resp.json.side_effect = [[{"full_name": "user/vpn-repo1"}], []]
         mock_resp.status_code = 200
-        mock_session.get.return_value = mock_resp
+        mock_session.request.return_value = mock_resp
         mock_clean_session.return_value = mock_session
         assert sync_stars("testuser", sources_file) == 0
 
@@ -120,7 +120,7 @@ class TestFetchUrlConfigs:
         mock_resp.text = f"{VLESS1}\n{VLESS2}\n{VLESS3}\n"
         mock_resp.status_code = 200
         mock_instance = MagicMock()
-        mock_instance.get.return_value = mock_resp
+        mock_instance.request.return_value = mock_resp
         mock_instance.trust_env = True
         MockSession.return_value = mock_instance
         assert len(fetch_url_configs("https://example.com/sub.txt")) == 3
@@ -128,7 +128,7 @@ class TestFetchUrlConfigs:
     @patch("vpn_collector.sources.requests.Session")
     def test_returns_empty_on_error(self, MockSession):
         mock_instance = MagicMock()
-        mock_instance.get.side_effect = Exception("connection error")
+        mock_instance.request.side_effect = Exception("connection error")
         MockSession.return_value = mock_instance
         assert fetch_url_configs("https://example.com/sub.txt") == []
 
@@ -180,7 +180,7 @@ class TestFetchRepoConfigs:
         file_resp.text = f"{VLESS1}\n{VLESS2}\n{VLESS3}\n"
         mock_instance = MagicMock()
         # tree + 3 blob fetches (sub.txt, nodes, config.yml), README.md skipped
-        mock_instance.get.side_effect = [tree_resp, file_resp, file_resp, file_resp]
+        mock_instance.request.side_effect = [tree_resp, file_resp, file_resp, file_resp]
         MockSession.return_value = mock_instance
         configs = fetch_repo_configs("user/repo")
         assert len(configs) == 3  # deduped across three identical files
@@ -237,3 +237,20 @@ def test_fetch_repo_texts_skips_bulk_static_node_files(monkeypatch):
 
     assert len(result) == 2
     assert all("node-001" not in url for url in fetched)
+
+
+def test_fetch_all_configs_continues_when_telegram_is_unavailable(tmp_path, monkeypatch, caplog):
+    sources_file = tmp_path / "sources.json"
+    sources_file.write_text(json.dumps([
+        {"type": "repo", "value": "user/repo"},
+        {"type": "tg", "value": "channel"},
+    ]))
+    monkeypatch.setattr("vpn_collector.sources.fetch_repo_configs", lambda _repo: [VLESS1])
+
+    async def telegram_unavailable(_channels):
+        raise ConnectionError("Telegram is unreachable")
+
+    monkeypatch.setattr("vpn_collector.tg_source.fetch_all_tg_configs", telegram_unavailable)
+
+    assert fetch_all_configs(sources_file) == [VLESS1]
+    assert "Telegram source failed; skipping Telegram" in caplog.text
