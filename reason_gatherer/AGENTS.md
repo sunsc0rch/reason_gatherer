@@ -22,7 +22,7 @@
 
 ### zapret — предохранитель для транспорта WARP
 
-- Правило живёт в `/opt/zapret/config`, в начале `NFQWS_OPT` (два сегмента через `--new`, оба на `--hostlist-domains=cloudflareclient.com`): UDP/443 — `fake` + fake-quic, TCP/443 (fallback MASQUE на HTTP/2) — `fake,multidisorder` + fake-tls. Бэкап: `/opt/zapret/config.backup-warp-20261108-*`. Активация: `sudo systemctl restart zapret`.
+- Правило живёт в `/opt/zapret/config`, в начале `NFQWS_OPT` (два сегмента через `--new`, оба на `--hostlist-domains=cloudflareclient.com` c обязательным `--hostlist-exclude-domains=api.cloudflareclient.com` (без исключения warp-cli не может зарегистрироваться: desync ломает TLS ClientHello API → "Failed to communicate with the WARP API")): UDP/443 — `fake` + fake-quic, TCP/443 (fallback MASQUE на HTTP/2) — `fake,multidisorder` + fake-tls. Бэкап: `/opt/zapret/config.backup-warp-20261108-*`. Активация: `sudo systemctl restart zapret`.
 - warp-svc и так попадает в очередь nfqws (nft `postnat`: `udp dport 443 ct original packets 1-9 → queue 200`) — правило лишь добавляет десинхронизацию.
 - Спасает от **DPI-детекта MASQUE по SNI** (читаемый QUIC Initial / TLS ClientHello `*.cloudflareclient.com`). **Не спасает** от IP-блэка `engage.cloudflareclient.com` (там менять `warp_masque_ep`/`warp_api_hosts` или нести WARP поверх другого прокси) и от IP-троттлинга.
 - Контроль после правок: `curl --socks5-hostname 127.0.0.1:40000 https://www.cloudflare.com/cdn-cgi/trace` → `warp=on`; системный прокси Throne → HTTP 204.

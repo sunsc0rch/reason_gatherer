@@ -175,8 +175,8 @@ missing. Added to the head of `NFQWS_OPT` in `/opt/zapret/config`
 (backup `config.backup-warp-20261108-*`):
 
 ```
---filter-udp=443 --hostlist-domains=cloudflareclient.com --dpi-desync=fake --dpi-desync-repeats=6 --dpi-desync-fake-quic=/opt/zapret/files/fake/quic_6.bin --new
---filter-tcp=443 --hostlist-domains=cloudflareclient.com --dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,midsld --dpi-desync-repeats=6 --dpi-desync-fake-tls=/opt/zapret/files/fake/tls_clienthello_www_google_com.bin --dpi-desync-fooling=badsum --new
+--filter-udp=443 --hostlist-domains=cloudflareclient.com --hostlist-exclude-domains=api.cloudflareclient.com --dpi-desync=fake --dpi-desync-repeats=6 --dpi-desync-fake-quic=/opt/zapret/files/fake/quic_6.bin --new
+--filter-tcp=443 --hostlist-domains=cloudflareclient.com --hostlist-exclude-domains=api.cloudflareclient.com --dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,midsld --dpi-desync-repeats=6 --dpi-desync-fake-tls=/opt/zapret/files/fake/tls_clienthello_www_google_com.bin --dpi-desync-fooling=badsum --new
 ```
 
 `sudo systemctl restart zapret` picks it up. Verified after the restart:
