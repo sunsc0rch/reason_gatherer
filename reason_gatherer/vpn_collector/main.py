@@ -2,7 +2,9 @@ import argparse
 import asyncio
 import logging
 import random as _random
+import subprocess
 import sys
+from collections import Counter
 from datetime import date
 from pathlib import Path
 
@@ -19,7 +21,10 @@ from vpn_collector.subscriptions import (
     extract_subscription_urls, fetch_subscription_configs,
     validate_subscription_urls,
 )
-from vpn_collector.tester import tcp_filter, tunnel_filter, find_singbox, test_config_tunnel
+from vpn_collector.tester import (
+    tcp_filter, tunnel_filter, find_singbox, test_config_tunnel,
+    classify_endpoints,
+)
 from vpn_collector.storage import (
     load_known_hosts, load_known_good_hp, load_known_good_configs,
     rewrite_known_good, load_tcp_cache, update_tcp_cache,
@@ -57,7 +62,7 @@ def cmd_collect(sample: int | None = None) -> None:
     _log.info(f"Collected {len(configs)} unique configs")
 
     if sample and sample < len(configs):
-        configs = random.sample(configs, sample)
+        configs = _random.sample(configs, sample)
         _log.info(f"Sampled {sample} configs randomly")
 
     candidates_file = RESULTS_DIR / "candidates.txt"
@@ -414,6 +419,96 @@ def cmd_test_subscriptions(subscription_index: int | None = None) -> None:
     _log.info("Saved %d working configs → %s", len(passed), output)
 
 
+def _warp_is_connected() -> bool:
+    """True if the Cloudflare WARP tunnel is up (its probes bypass the ISP).
+
+    Best-effort: returns False when warp-cli is absent or errors out.
+    """
+    try:
+        out = subprocess.run(
+            ["warp-cli", "--accept-tos", "status"],
+            capture_output=True, text=True, timeout=5,
+        )
+    except (FileNotFoundError, subprocess.SubprocessError, OSError):
+        return False
+    return "Connected" in (out.stdout + out.stderr)
+
+
+def cmd_diagnose(sample: int | None = None, args_file: str | None = None) -> None:
+    """Split TCP-unreachable endpoints into ISP-blackholed vs dead servers.
+
+    Reads candidates/known_good configs, TCP-checks them, then runs the
+    TTL-capped ping probe on every endpoint that failed so the report can
+    say "blocked by provider" instead of just "unreachable".
+    """
+    RESULTS_DIR.mkdir(exist_ok=True)
+    configs: list[str] = []
+    source: Path | None = Path(args_file) if args_file else None
+    if source is None:
+        # Prefer the broadest recheck baseline: the newest recheck usually
+        # holds only survivors, which leaves nothing to diagnose.
+        rechecks = [p for p in RESULTS_DIR.glob("recheck_*.txt") if p.stat().st_size]
+        if rechecks:
+            source = max(rechecks, key=lambda p: len(p.read_text().splitlines()))
+        for fallback in ("known_good.txt", "candidates.txt"):
+            if source is None:
+                source = RESULTS_DIR / fallback
+    if source and source.exists():
+        configs = [ln for ln in source.read_text().splitlines() if ln.strip()]
+    if configs:
+        _log.info(f"Diagnose source: {source.name} ({len(configs)} configs)")
+    else:
+        print("No config file to diagnose (looked for recheck_*/known_good/candidates).")
+        return
+    if sample and sample < len(configs):
+        configs = _random.sample(configs, sample)
+        _log.info(f"Sampled {sample} configs randomly")
+
+    by_endpoint: dict[tuple, list[str]] = {}
+    for cfg in configs:
+        hp = extract_host_port(cfg)
+        if hp:
+            by_endpoint.setdefault(hp, []).append(cfg)
+    endpoints = list(by_endpoint)
+    _log.info(f"TCP pre-filter over {len(endpoints)} unique endpoints...")
+
+    alive = asyncio.run(tcp_filter(configs))
+    alive_hp = {extract_host_port(c) for c in alive}
+    unreachable = [hp for hp in endpoints if hp not in alive_hp]
+    _log.info(f"TCP: {len(alive_hp)} alive | {len(unreachable)} unreachable")
+
+    if not unreachable:
+        print("All endpoints reachable — nothing to diagnose.")
+        return
+
+    _log.info("Blackhole probe (TTL-capped ping) on unreachable endpoints...")
+    if _warp_is_connected():
+        _log.warning(
+            "WARP is connected — probes will ride the tunnel and every endpoint "
+            "will look reachable. Disconnect WARP for an honest diagnosis."
+        )
+    verdicts = asyncio.run(classify_endpoints(unreachable))
+
+    counts: Counter = Counter(verdicts.values())
+    tag = Path(source).stem  # e.g. "recheck_2026-11-04"
+    out_file = RESULTS_DIR / f"diagnose_{tag}_{date.today().isoformat()}.txt"
+    with open(out_file, "w") as fh:
+        fh.write(f"# blackhole diagnosis {source.name} {date.today().isoformat()}\n")
+        fh.write("# blocked_by_isp = packet dies in our access network (silent at TTL 5/8/12):\n")
+        fh.write("#   the endpoint is unreachable *from here* regardless of server state —\n")
+        fh.write("#   a host may be blackholed locally AND dead at the same time.\n")
+        fh.write("# server_dead    = a router answered, so the route is clear and the host\n")
+        fh.write("#   or port simply does not answer.\n")
+        for status in ("blocked_by_isp", "server_dead", "unknown"):
+            for hp, v in sorted(verdicts.items(), key=lambda kv: (kv[1], kv[0])):
+                if v != status:
+                    continue
+                fh.write(f"{status}\t{hp[0]}:{hp[1]}\n")
+    summary = ", ".join(f"{k}={v}" for k, v in counts.most_common())
+    _log.info(f"Diagnosis: {len(verdicts)} endpoints → {summary}")
+    print(f"\n{summary}\nreport: {out_file}")
+
+
 def cmd_stats() -> None:
     RESULTS_DIR.mkdir(exist_ok=True)
     stats = get_stats(RESULTS_DIR)
@@ -435,6 +530,9 @@ def main() -> None:
     mode.add_argument("--test-subscriptions", action="store_true", help="Test every config from saved subscription URLs → subscription_configs.txt")
     mode.add_argument("--test-subscription", type=int, metavar="INDEX", help="Test one 1-based URL row from subscriptions.txt → subscription_configs_INDEX.txt")
     mode.add_argument("--stats", action="store_true", help="Show counts per result file")
+    mode.add_argument("--diagnose", nargs="?", const="", metavar="FILE",
+                      help="Split TCP-unreachable endpoints into ISP-blackholed vs dead servers "
+                           "(TTL ping probe); optional FILE, defaults to the broadest recheck")
     mode.add_argument("--setup-tg", action="store_true", help="Authenticate Telegram (interactive)")
     parser.add_argument("--add-source", metavar="SOURCE", help="Add GitHub repo (user/repo) or raw URL")
     parser.add_argument("--sync-stars", metavar="USERNAME", help="Sync GitHub starred repos")
@@ -449,7 +547,7 @@ def main() -> None:
 
     if not any([args.collect, args.test, args.full, args.recheck, args.subscriptions,
                 args.test_subscriptions, args.test_subscription is not None,
-                args.stats, args.add_source, args.sync_stars, args.setup_tg]):
+                args.stats, args.diagnose is not None, args.add_source, args.sync_stars, args.setup_tg]):
         parser.print_help()
         return
 
@@ -471,6 +569,8 @@ def main() -> None:
         cmd_test_subscriptions(subscription_index=args.test_subscription)
     elif args.stats:
         cmd_stats()
+    elif args.diagnose is not None:
+        cmd_diagnose(sample=args.sample, args_file=args.diagnose or None)
     elif args.setup_tg:
         cmd_setup_tg()
     elif args.add_source:

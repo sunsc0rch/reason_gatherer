@@ -8,6 +8,12 @@ SOURCES_FILE = BASE_DIR / "sources.json"
 
 TCP_TIMEOUT = 4.0
 TCP_CONCURRENCY = 100
+# Blackhole (ISP destination-IP drop point) detector: ping with a TTL cap.
+# A reply at any of these TTLs means the packet cleared the ISP drop point;
+# silence at all of them means the destination is dropped inside the access
+# network (before the first hop that would answer with Time-to-live-exceeded).
+BLACKHOLE_TTLS = (5, 8, 12)
+PING_TIMEOUT = 2.0
 TCP_BATCH_SIZE = 5000
 TUNNEL_CONCURRENCY = 32
 MIN_SPEED_MBPS = 1.0

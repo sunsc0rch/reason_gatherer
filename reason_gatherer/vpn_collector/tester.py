@@ -24,6 +24,7 @@ from vpn_collector.config import (
     CLAUDE_BLOCK_URL_KEYWORDS,
     SINGBOX_STARTUP_TIMEOUT, TUNNEL_CONCURRENCY, SOCKS_PORT_RANGE,
     SPEEDTEST_EARLY_ABORT_FACTOR, SPEEDTEST_EARLY_ABORT_AFTER,
+    BLACKHOLE_TTLS, PING_TIMEOUT,
 )
 from vpn_collector.parser import extract_host_port, extract_name, set_name
 
@@ -94,6 +95,97 @@ async def tcp_check(host: str, port: int, timeout: float = TCP_TIMEOUT) -> bool:
         return True
     except Exception:
         return False
+
+
+async def _ping_once(host: str, ttl: int, timeout: float = PING_TIMEOUT) -> str:
+    """Run one TTL-capped ping and classify the answer.
+
+    Returns:
+      "reply"  — the destination itself answered ICMP (route + host alive).
+      "hop"    — an intermediate router answered (Time-to-live-exceeded or
+                 ICMP unreachable): the packet cleared the ISP drop point,
+                 so the destination is NOT blackholed by the ISP.
+      "silent" — no ICMP at all within `timeout`, i.e. the packet was
+                 swallowed somewhere before the first answering hop.
+      "error"  — ping itself failed (binary missing, bad name, no route).
+    """
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "ping", "-c", "1", "-W", "1", "-t", str(ttl), host,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+        )
+    except (FileNotFoundError, PermissionError, OSError):
+        return "error"
+    try:
+        out, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout + 2.0)
+    except asyncio.TimeoutError:
+        try:
+            proc.kill()
+        except ProcessLookupError:
+            pass
+        return "silent"
+    text = out.decode(errors="replace")
+    if "bytes from" in text:
+        return "reply"
+    if "Time to live exceeded" in text or "Unreachable" in text:
+        return "hop"
+    if "Unknown host" in text or "Name or service not known" in text:
+        return "error"
+    return "silent"
+
+
+async def blackhole_probe(
+    host: str,
+    ttls: tuple[int, ...] = BLACKHOLE_TTLS,
+) -> bool | None:
+    """Tell an ISP destination-IP block apart from a dead host.
+
+    True  — blackholed: no ICMP at any capped TTL (packet dies inside the
+            access network, before the first hop that would answer).
+    False — packets reach the destination's network (target or a router
+            answered); the host is simply down or its port is closed.
+    None  — inconclusive (ping unavailable or the name does not resolve).
+
+    Calibrated on AS60095: a live-but-ICMP-silent host still yields a hop
+    reply at TTL 5, while a blackholed IP stays silent at TTL 5/8/12.
+    """
+    saw_error = False
+    for ttl in ttls:
+        result = await _ping_once(host, ttl)
+        if result in ("reply", "hop"):
+            return False
+        if result == "error":
+            saw_error = True
+    return None if saw_error else True
+
+
+async def classify_endpoint(host: str, port: int, timeout: float = TCP_TIMEOUT) -> str:
+    """Endpoint verdict: "alive", "blocked_by_isp", "server_dead" or "unknown"."""
+    if await tcp_check(host, port, timeout):
+        return "alive"
+    blackholed = await blackhole_probe(host)
+    if blackholed is True:
+        return "blocked_by_isp"
+    if blackholed is False:
+        return "server_dead"
+    return "unknown"
+
+
+async def classify_endpoints(
+    endpoints: list[tuple],
+    concurrency: int = TCP_CONCURRENCY,
+    timeout: float = TCP_TIMEOUT,
+) -> dict[tuple, str]:
+    """Classify every host:port (typically the ones that failed tcp_check)."""
+    semaphore = asyncio.Semaphore(min(concurrency, 32))  # ping probes are cheap but bounded
+
+    async def one(hp: tuple) -> tuple[tuple, str]:
+        async with semaphore:
+            return hp, await classify_endpoint(hp[0], hp[1], timeout)
+
+    results = await asyncio.gather(*[one(hp) for hp in endpoints])
+    return dict(results)
 
 
 async def tcp_filter(

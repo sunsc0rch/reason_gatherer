@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from vpn_collector.tester import (
     tcp_check, tcp_filter, find_singbox, generate_singbox_config,
     UnsupportedTransportError, SpeedTestResult, speedtest_via_socks_detailed,
-    classify_singbox_failure,
+    classify_singbox_failure, blackhole_probe, classify_endpoint, classify_endpoints,
 )
 
 VLESS1 = "vless://uuid1@1.2.3.4:443?type=tcp#Server1"
@@ -401,3 +401,95 @@ class TestTunnelFilter:
         with patch("vpn_collector.tester.test_config_tunnel", return_value=None):
             result = await tunnel_filter(["vless://uuid@host:443#Server"], "/usr/bin/sing-box", concurrency=1)
         assert result == []
+
+
+class TestBlackholeProbe:
+    """TTL-capped ping distinguishes an ISP destination-IP block from a dead host.
+
+    Calibration (AS60095): a live-but-ICMP-silent host still answers with
+    Time-to-live-exceeded at TTL 5, while a blackholed IP stays silent at
+    TTL 5/8/12 — the packet dies inside the access network.
+    """
+
+    @staticmethod
+    def _fake_ping(result: str):
+        async def fake_once(host, ttl, timeout=2.0):
+            return result
+        return fake_once
+
+    @pytest.mark.asyncio
+    async def test_target_reply_means_not_blackholed(self):
+        with patch("vpn_collector.tester._ping_once", self._fake_ping("reply")):
+            assert await blackhole_probe("1.2.3.4") is False
+
+    @pytest.mark.asyncio
+    async def test_hop_reply_means_packet_cleared_drop_point(self):
+        with patch("vpn_collector.tester._ping_once", self._fake_ping("hop")):
+            assert await blackhole_probe("1.2.3.4") is False
+
+    @pytest.mark.asyncio
+    async def test_silence_at_every_ttl_means_blackholed(self):
+        probed = []
+
+        async def fake_once(host, ttl, timeout=2.0):
+            probed.append(ttl)
+            return "silent"
+
+        with patch("vpn_collector.tester._ping_once", fake_once):
+            assert await blackhole_probe("1.2.3.4", ttls=(5, 8, 12)) is True
+        assert probed == [5, 8, 12]
+
+    @pytest.mark.asyncio
+    async def test_inconclusive_when_ping_unavailable(self):
+        with patch("vpn_collector.tester._ping_once", self._fake_ping("error")):
+            assert await blackhole_probe("1.2.3.4", ttls=(5, 8)) is None
+
+    @pytest.mark.asyncio
+    async def test_probes_every_ttl_until_a_reply(self):
+        calls = []
+
+        async def fake_once(host, ttl, timeout=2.0):
+            calls.append(ttl)
+            return "silent" if ttl == 5 else "hop"
+
+        with patch("vpn_collector.tester._ping_once", fake_once):
+            assert await blackhole_probe("1.2.3.4") is False
+        assert calls == [5, 8]
+
+
+class TestClassifyEndpoint:
+    @pytest.mark.asyncio
+    async def test_open_port_is_alive(self):
+        with patch("vpn_collector.tester.tcp_check", AsyncMock(return_value=True)) as tc:
+            assert await classify_endpoint("1.2.3.4", 443) == "alive"
+        tc.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_closed_port_with_route_is_dead_server(self):
+        with patch("vpn_collector.tester.tcp_check", AsyncMock(return_value=False)), \
+             patch("vpn_collector.tester.blackhole_probe", AsyncMock(return_value=False)):
+            assert await classify_endpoint("1.2.3.4", 443) == "server_dead"
+
+    @pytest.mark.asyncio
+    async def test_silent_route_is_blocked_by_isp(self):
+        with patch("vpn_collector.tester.tcp_check", AsyncMock(return_value=False)), \
+             patch("vpn_collector.tester.blackhole_probe", AsyncMock(return_value=True)):
+            assert await classify_endpoint("1.2.3.4", 443) == "blocked_by_isp"
+
+    @pytest.mark.asyncio
+    async def test_inconclusive_probe_stays_unknown(self):
+        with patch("vpn_collector.tester.tcp_check", AsyncMock(return_value=False)), \
+             patch("vpn_collector.tester.blackhole_probe", AsyncMock(return_value=None)):
+            assert await classify_endpoint("1.2.3.4", 443) == "unknown"
+
+    @pytest.mark.asyncio
+    async def test_classify_endpoints_maps_every_endpoint(self):
+        async def fake_classify(host, port, timeout=4.0):
+            return {"1.1.1.1": "blocked_by_isp", "2.2.2.2": "server_dead"}[host]
+
+        with patch("vpn_collector.tester.classify_endpoint", fake_classify):
+            result = await classify_endpoints([("1.1.1.1", 443), ("2.2.2.2", 80)])
+        assert result == {
+            ("1.1.1.1", 443): "blocked_by_isp",
+            ("2.2.2.2", 80): "server_dead",
+        }
