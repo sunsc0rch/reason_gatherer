@@ -9,6 +9,7 @@ from datetime import date
 from pathlib import Path
 
 _log = logging.getLogger(__name__)
+WARP_SOCKS_PROXY = ("127.0.0.1", 40000)
 
 from vpn_collector.config import (
     RESULTS_DIR, SOURCES_FILE, LOGS_DIR, MAX_RUN_FILES, SINGBOX_SEARCH_PATHS,
@@ -141,6 +142,12 @@ def cmd_collect(sample: int | None = None) -> None:
 
 
 def cmd_test() -> None:
+    if _warp_tunnel_active():
+        raise SystemExit(
+            "WARP is active in system-tunnel mode; switch to 'warp-cli mode proxy' "
+            "to keep --test direct"
+        )
+
     RESULTS_DIR.mkdir(exist_ok=True)
     candidates_file = RESULTS_DIR / "candidates.txt"
     if not candidates_file.exists():
@@ -181,6 +188,58 @@ def cmd_test() -> None:
     if passed[0] > 0:
         removed = trim_candidates(candidates_file, load_known_good_hp(RESULTS_DIR))
         _log.info(f"Trimmed candidates.txt: removed {removed} now-verified configs")
+
+
+def cmd_test_warp(proxy: tuple[str, int] = WARP_SOCKS_PROXY) -> None:
+    """Test remaining candidates through the local WARP SOCKS proxy."""
+    candidates_file = RESULTS_DIR / "candidates.txt"
+    if not candidates_file.exists():
+        print("No candidates.txt found. Run --collect first.")
+        sys.exit(1)
+
+    singbox_path = find_singbox()
+    if not singbox_path:
+        print("sing-box binary not found. Searched:")
+        for path in SINGBOX_SEARCH_PATHS:
+            print(f"  {path}")
+        sys.exit(1)
+    _log.info("Using sing-box: %s", singbox_path)
+
+    if not asyncio.run(socks5_connect(proxy[0], proxy[1], "1.1.1.1", 443, 5.0)):
+        raise SystemExit(
+            f"WARP SOCKS5 proxy {proxy[0]}:{proxy[1]} is not reachable; "
+            "start warp-cli in proxy mode"
+        )
+
+    warp_results_dir = RESULTS_DIR / "warp"
+    warp_results_dir.mkdir(parents=True, exist_ok=True)
+    candidates = [line for line in candidates_file.read_text().splitlines() if line.strip()]
+    known_hosts = load_known_hosts(warp_results_dir)
+    new_candidates = [candidate for candidate in candidates if not is_duplicate(candidate, known_hosts)]
+    _log.info(
+        "WARP candidates: %d | Already verified via WARP: %d | To test: %d",
+        len(candidates), len(candidates) - len(new_candidates), len(new_candidates),
+    )
+
+    run_date = date.today().isoformat()
+    passed = [0]
+
+    def save_warp_immediately(config: str) -> None:
+        save_config(config, warp_results_dir, known_hosts, run_date=run_date)
+        passed[0] += 1
+        _log.info("Saved via WARP: %s...", config[:80])
+
+    asyncio.run(tunnel_filter(
+        new_candidates,
+        singbox_path,
+        on_pass=save_warp_immediately,
+        dialer_proxy=proxy,
+    ))
+    rotate_run_files(warp_results_dir, MAX_RUN_FILES)
+    _log.info(
+        "Done: %d new configs saved via WARP → results/warp/run_%s.txt",
+        passed[0], run_date,
+    )
 
 
 def find_free_socks_port() -> int:
@@ -567,6 +626,8 @@ def main() -> None:
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--collect", action="store_true", help="Fetch configs, TCP filter → candidates.txt")
     mode.add_argument("--test", action="store_true", help="Tunnel test candidates.txt → known_good.txt")
+    mode.add_argument("--test-warp", action="store_true",
+                      help="Tunnel test candidates.txt through warp-cli SOCKS → results/warp/")
     mode.add_argument("--full", action="store_true", help="Run --collect then --test")
     mode.add_argument("--recheck", action="store_true", help="Re-test known_good.txt → recheck_YYYY-MM-DD.txt (known_good untouched)")
     mode.add_argument("--subscriptions", action="store_true", help="Discover and validate subscription URLs from configured sources")
@@ -591,7 +652,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    if not any([args.collect, args.test, args.full, args.recheck, args.subscriptions,
+    if not any([args.collect, args.test, args.test_warp, args.full, args.recheck, args.subscriptions,
                 args.test_subscriptions, args.test_subscription is not None,
                 args.stats, args.diagnose is not None, args.add_source, args.sync_stars, args.setup_tg]):
         parser.print_help()
@@ -603,6 +664,8 @@ def main() -> None:
         cmd_collect(sample=args.sample)
     elif args.test:
         cmd_test()
+    elif args.test_warp:
+        cmd_test_warp()
     elif args.full:
         cmd_full(sample=args.sample)
     elif args.recheck:

@@ -297,7 +297,21 @@ def find_singbox() -> str | None:
     return None
 
 
-def _singbox_wrapper(socks_port: int, outbound: dict) -> dict:
+def _singbox_wrapper(
+    socks_port: int,
+    outbound: dict,
+    dialer_proxy: tuple[str, int] | None = None,
+) -> dict:
+    outbounds = [outbound]
+    if dialer_proxy is not None:
+        outbound["detour"] = "warp-dialer"
+        outbounds.append({
+            "type": "socks",
+            "tag": "warp-dialer",
+            "server": dialer_proxy[0],
+            "server_port": dialer_proxy[1],
+            "version": "5",
+        })
     return {
         "log": {"level": "error"},
         "inbounds": [{
@@ -306,7 +320,7 @@ def _singbox_wrapper(socks_port: int, outbound: dict) -> dict:
             "listen": "127.0.0.1",
             "listen_port": socks_port,
         }],
-        "outbounds": [outbound],
+        "outbounds": outbounds,
     }
 
 
@@ -468,8 +482,13 @@ def _parse_ss(line: str) -> dict:
         except Exception:
             decoded = userinfo
         method, password = (decoded.split(":", 1) + [""])[:2]
-        host, port_str = hostport.rsplit(":", 1)
-        port = int(port_str)
+        try:
+            host, port = p.hostname, p.port
+        except ValueError:
+            host, port = None, None
+        if host is None or port is None:
+            host, port_str = hostport.rsplit(":", 1)
+            port = int(port_str.split("?", 1)[0])
     return {
         "type": "shadowsocks",
         "tag": "proxy",
@@ -539,7 +558,10 @@ def _parse_socks(line: str) -> dict:
 
 
 def generate_singbox_config(
-    config_line: str, socks_port: int, verify_tls_cert: bool = False
+    config_line: str,
+    socks_port: int,
+    verify_tls_cert: bool = False,
+    dialer_proxy: tuple[str, int] | None = None,
 ) -> dict:
     line = config_line.strip().split("#")[0]
     if line.startswith("vless://"):
@@ -564,7 +586,7 @@ def generate_singbox_config(
         # sing-box validates certificates by default; existing collector modes
         # keep their historical insecure setting unless strict mode is asked for.
         outbound["tls"].pop("insecure", None)
-    return _singbox_wrapper(socks_port, outbound)
+    return _singbox_wrapper(socks_port, outbound, dialer_proxy=dialer_proxy)
 
 
 def _wait_for_socks_port(port: int, timeout: float) -> bool:
@@ -662,14 +684,28 @@ def test_config_tunnel(
     config_line: str, singbox_path: str, socks_port: int,
     verify_tls_cert: bool = False,
     on_failure: Callable[[str, str], None] | None = None,
+    dialer_proxy: tuple[str, int] | None = None,
 ) -> str | None:
     def fail(category: str, detail: str = "") -> None:
         if on_failure:
             on_failure(category, detail)
 
+    protocol = config_line.strip().partition("://")[0].lower()
+    if dialer_proxy is not None and protocol in {"hysteria", "hysteria2", "hy2", "tuic"}:
+        fail(
+            "warp_udp_unsupported",
+            "The local WARP SOCKS5 proxy does not support UDP_ASSOCIATE",
+        )
+        return None
+
     clean_env = {k: v for k, v in os.environ.items() if k not in PROXY_ENV_VARS}
     try:
-        cfg = generate_singbox_config(config_line, socks_port, verify_tls_cert)
+        cfg = generate_singbox_config(
+            config_line,
+            socks_port,
+            verify_tls_cert,
+            dialer_proxy=dialer_proxy,
+        )
     except UnsupportedTransportError as e:
         fail("unsupported_transport", str(e))
         return None
@@ -745,6 +781,7 @@ async def tunnel_filter(
     log_every: int = 10,
     on_pass: callable = None,
     verify_tls_cert: bool = False,
+    dialer_proxy: tuple[str, int] | None = None,
 ) -> list[str]:
     total = len(candidates)
     done = 0
@@ -769,7 +806,7 @@ async def tunnel_filter(
             loop = asyncio.get_running_loop()
             result = await loop.run_in_executor(
                 executor, test_config_tunnel, config, singbox_path, port,
-                verify_tls_cert, diagnostics.record,
+                verify_tls_cert, diagnostics.record, dialer_proxy,
             )
             used_ports.discard(port)  # sing-box is dead by now; port is free to reuse
         done += 1

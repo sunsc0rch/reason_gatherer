@@ -9,6 +9,7 @@ from vpn_collector.tester import (
     classify_singbox_failure, blackhole_probe, classify_endpoint, classify_endpoints,
     socks5_connect,
 )
+from vpn_collector.config import PROXY_ENV_VARS
 
 VLESS1 = "vless://uuid1@1.2.3.4:443?type=tcp#Server1"
 TROJAN = "trojan://password@9.10.11.12:443?sni=example.com#TrojanServer"
@@ -131,6 +132,25 @@ class TestGenerateSingboxConfig:
         assert out["server_port"] == 443
         assert out["uuid"] == "some-uuid"
 
+    def test_dialer_proxy_adds_socks_outbound_and_detours_candidate(self):
+        cfg = generate_singbox_config(
+            VLESS_TLS,
+            socks_port=11015,
+            dialer_proxy=("127.0.0.1", 40000),
+        )
+
+        candidate = next(out for out in cfg["outbounds"] if out["tag"] == "proxy")
+        warp = next(out for out in cfg["outbounds"] if out["tag"] == "warp-dialer")
+
+        assert candidate["detour"] == "warp-dialer"
+        assert warp == {
+            "type": "socks",
+            "tag": "warp-dialer",
+            "server": "127.0.0.1",
+            "server_port": 40000,
+            "version": "5",
+        }
+
     def test_vmess_structure(self):
         out = generate_singbox_config(VMESS_LINE, socks_port=11001)["outbounds"][0]
         assert out["type"] == "vmess"
@@ -151,6 +171,19 @@ class TestGenerateSingboxConfig:
         assert out["server_port"] == 8388
         assert out["method"] == "aes-256-gcm"
         assert out["password"] == "pass"
+
+    def test_ss_url_with_empty_query_marker_parses_port(self):
+        line = (
+            "ss://Y2hhY2hhMjAtaWV0Zi1wb2x5MTMwNTo3OGI2ZTkzZTU0MjI1ODAz"
+            "@51.75.168.50:26179?#name"
+        )
+
+        out = generate_singbox_config(line, socks_port=11014)["outbounds"][0]
+
+        assert out["server"] == "51.75.168.50"
+        assert out["server_port"] == 26179
+        assert out["method"] == "chacha20-ietf-poly1305"
+        assert out["password"] == "78b6e93e54225803"
 
     def test_hy2_structure(self):
         out = generate_singbox_config(HY2_LINE, socks_port=11004)["outbounds"][0]
@@ -343,7 +376,32 @@ class TestTestConfigTunnel:
         assert "xhttp" in failures[0][1]
         mock_popen.assert_not_called()
 
-    def test_returns_marked_config_on_success(self):
+    @pytest.mark.parametrize("config_line", [
+        "hysteria://password@hy.example:443#Hy",
+        "hysteria2://password@hy2.example:443#Hy2",
+        "hy2://password@hy2.example:443#Hy2",
+        "tuic://uuid:password@tuic.example:443#Tuic",
+    ])
+    def test_warp_socks_skips_udp_only_protocols(self, config_line):
+        failures = []
+        with patch("vpn_collector.tester.subprocess.Popen") as mock_popen:
+            result = test_config_tunnel(
+                config_line,
+                "/usr/bin/sing-box",
+                socks_port=13004,
+                dialer_proxy=("127.0.0.1", 40000),
+                on_failure=lambda category, detail: failures.append((category, detail)),
+            )
+
+        assert result is None
+        assert failures[0][0] == "warp_udp_unsupported"
+        assert "UDP" in failures[0][1]
+        mock_popen.assert_not_called()
+
+    def test_successful_tunnel_launch_strips_system_proxy_environment(self, monkeypatch):
+        for name in PROXY_ENV_VARS:
+            monkeypatch.setenv(name, "http://127.0.0.1:2080")
+
         mock_proc = MagicMock()
         mock_proc.poll.return_value = None
         mock_proc.terminate = MagicMock()
@@ -369,6 +427,8 @@ class TestTestConfigTunnel:
             result = test_config_tunnel(VLESS_TEST, "/usr/bin/sing-box", socks_port=13000)
         assert result is not None
         assert "#+++TestServer" in result
+        child_env = mock_popen.call_args.kwargs["env"]
+        assert all(name not in child_env for name in PROXY_ENV_VARS)
 
     def test_returns_none_below_speed_threshold(self):
         mock_proc = MagicMock()
@@ -402,6 +462,27 @@ class TestTunnelFilter:
         with patch("vpn_collector.tester.test_config_tunnel", return_value=None):
             result = await tunnel_filter(["vless://uuid@host:443#Server"], "/usr/bin/sing-box", concurrency=1)
         assert result == []
+
+    @pytest.mark.asyncio
+    async def test_forwards_dialer_proxy_to_each_tunnel_test(self):
+        proxy = ("127.0.0.1", 40000)
+        seen = []
+
+        def fake_test(config, singbox_path, socks_port, verify_tls_cert=False,
+                      on_failure=None, dialer_proxy=None):
+            seen.append(dialer_proxy)
+            return config
+
+        with patch("vpn_collector.tester.test_config_tunnel", side_effect=fake_test):
+            result = await tunnel_filter(
+                [VLESS_TEST],
+                "/usr/bin/sing-box",
+                concurrency=1,
+                dialer_proxy=proxy,
+            )
+
+        assert result == [VLESS_TEST]
+        assert seen == [proxy]
 
 
 class TestBlackholeProbe:

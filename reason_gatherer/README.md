@@ -135,6 +135,20 @@ Three independent pieces on this box; they run side by side.
   were `blocked_by_isp`; 5 of the 17 stayed dead even via WARP (blackholed
   *and* dead at once).
 
+### Testing VPN candidates directly or through WARP
+
+- `--test` clears proxy environment variables before launching sing-box, so
+  it tests the direct route. It refuses to run if `warp-cli` reports a
+  connected system-tunnel mode; `WarpProxy` mode is safe for direct testing.
+- After `--test`, run `python -m vpn_collector.main --test-warp` to retry the
+  remaining candidates through the local `warp-cli mode proxy` SOCKS5 service
+  at `127.0.0.1:40000`. The command first checks that the SOCKS proxy can
+  connect to `1.1.1.1:443`.
+- WARP-only successes go to `results/warp/known_good.txt` and dated run files
+  under `results/warp/`; they do not enter the direct `known_good.txt` pool.
+- The WARP SOCKS service does not support SOCKS5 `UDP_ASSOCIATE`, so Hysteria,
+  Hysteria2, Hy2, and TUIC candidates are marked unsupported in this mode.
+
 ### Throne — system proxy with built-in WARP
 
 Throne serves the system proxy (mixed inbound `127.0.0.1:2080`,
@@ -221,6 +235,7 @@ python -m vpn_collector.main --test-subscription 3
 # Step by step:
 python -m vpn_collector.main --collect        # fetch and TCP-filter → candidates.txt
 python -m vpn_collector.main --test           # tunnel-test candidates.txt → known_good.txt
+python -m vpn_collector.main --test-warp      # test remaining candidates through WARP → results/warp/
 
 # Quick run on a random subset
 python -m vpn_collector.main --collect --sample 30000
