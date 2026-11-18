@@ -137,17 +137,11 @@ Three independent pieces on this box; they run side by side.
 
 ### Testing VPN candidates directly or through WARP
 
-- `--test` clears proxy environment variables before launching sing-box, so
-  it tests the direct route. It refuses to run if `warp-cli` reports a
-  connected system-tunnel mode; `WarpProxy` mode is safe for direct testing.
-- After `--test`, run `python -m vpn_collector.main --test-warp` to retry the
-  remaining candidates through the local `warp-cli mode proxy` SOCKS5 service
-  at `127.0.0.1:40000`. The command first checks that the SOCKS proxy can
-  connect to `1.1.1.1:443`.
-- WARP-only successes go to `results/warp/known_good.txt` and dated run files
-  under `results/warp/`; they do not enter the direct `known_good.txt` pool.
-- The WARP SOCKS service does not support SOCKS5 `UDP_ASSOCIATE`, so Hysteria,
-  Hysteria2, Hy2, and TUIC candidates are marked unsupported in this mode.
+`--test` checks candidates directly, without proxy environment variables, and
+stops if WARP is connected as a system tunnel. Use `--test-warp` to retry
+through the local `warp-cli mode proxy` SOCKS5 service at `127.0.0.1:40000`;
+WARP successes are stored separately in `results/warp/`. Hysteria, Hysteria2,
+Hy2, and TUIC are skipped because this SOCKS proxy does not support UDP.
 
 ### Throne — system proxy with built-in WARP
 
