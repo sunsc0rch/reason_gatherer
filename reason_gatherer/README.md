@@ -302,6 +302,43 @@ Accepted formats: `t.me/name`, `t.me/s/name`, `https://t.me/name`. The last 50 p
 
 If Telethon is not installed or setup was not run, `--collect` continues normally without TG — no crash.
 
+### Curated feeds from “Запасной аэродром”
+
+The active source list includes these feeds and Telegram channels selected from the public [`@airfield1972` `#keys` posts](https://t.me/s/airfield1972?q=%23keys). Raw endpoints and channel activity were checked on 2026-11-20. The success counts below were reported by the channel author, who tested from Haifa; the collector still checks configs from the local network on each run.
+
+| Source | Collector input | Reported result |
+|---|---|---|
+| [ScarletDevil](https://raw.githubusercontent.com/Areral/ScarletDevil/refs/heads/main/sub_all.txt) | Raw subscription, refreshed about every 4 hours | 205 of 214 configs under 100 ms passed the speed test ([post](https://t.me/airfield1972/6660)) |
+| [TelegaVPN](https://raw.githubusercontent.com/TelegaVPN/free-vpn-keys/refs/heads/main/sub/base64/all.txt) | Base64 subscription | 64 of 77 configs worked ([post](https://t.me/airfield1972/6653)) |
+| [Ariston gold](https://raw.githubusercontent.com/Edsel-Rahimi/Ariston/data/gold.txt) | Curated VLESS feed | 249 of 311 passed the speed test ([post](https://t.me/airfield1972/6686)) |
+| [theakres/VPN](https://raw.githubusercontent.com/theakres/VPN/refs/heads/main/all) | Combined raw feed | 241 of 717 passed the speed test ([post](https://t.me/airfield1972/6694)) |
+| [zhangqiyang2-max](https://gist.githubusercontent.com/zhangqiyang2-max/47f1336a2e41af2e0f7f4313cc8c4bdc/raw/v2ray.txt) | V2Ray text feed | 70 of 87 passed across the V2Ray and Clash feeds ([post](https://t.me/airfield1972/6718)) |
+| [554mtntjch-code](https://gist.githubusercontent.com/554mtntjch-code/3a1a5e147050f64d72d5b8f5c6d4d61c/raw/v2ray.txt) | V2Ray text feed | 14 of 20 V2Ray configs passed ([post](https://t.me/airfield1972/6727)) |
+| [skysph-dev](https://gist.githubusercontent.com/skysph-dev/5b55986287442543485b30468db3eb65/raw/v2ray.txt) | V2Ray text feed | 15 of 21 passed in Throne; 20 of 21 in FLClash ([post](https://t.me/airfield1972/6746)) |
+| [st0rer Hysteria2](https://gist.githubusercontent.com/st0rer/52759ee3f68c3d4b2f2d53c307867471/raw/hy2_nodes.txt) | Plain-text Hysteria2 feed | 18 of 25 passed the Throne test ([post](https://t.me/airfield1972/6757)) |
+| [December000](https://gist.githubusercontent.com/December000/fd23d2530ffc29264297a5e687a79ecd/raw/base64.txt) | Base64 feed | 12 of 13 configs worked ([post](https://t.me/airfield1972/6697)) |
+| [V2RayN-VPN-Source](https://raw.githubusercontent.com/ivanprochorov2022-debug/V2RayN-VPN-Source/refs/heads/main/live.txt) | Large live feed; expect more candidates and duplicates | 54 configs passed speed checks from 5,087 parsed, after latency filtering ([post](https://t.me/airfield1972/6731)) |
+
+The following public channels are also scanned across their latest 50 posts. They were active on 2026-11-20.
+
+| Telegram channel | Reported result |
+|---|---|
+| [@pass_net](https://t.me/s/pass_net) | 38 of 65 configs worked ([post](https://t.me/airfield1972/6648)) |
+| [@VPsave](https://t.me/s/VPsave) | 48 of 138 passed testing ([post](https://t.me/airfield1972/6664)) |
+| [@configv2rayng](https://t.me/s/configv2rayng) | 197 of 592 passed speed checks ([post](https://t.me/airfield1972/6705)) |
+| [@ex_proxies](https://t.me/s/ex_proxies) | 127 of 335 passed speed checks ([post](https://t.me/airfield1972/6736)) |
+| [@FXxNET](https://t.me/s/FXxNET) | 202 passed speed checks among 215 configs with latency under 100 ms ([post](https://t.me/airfield1972/6691)) |
+
+### Additional live-tested subscriptions
+
+These feeds were checked on 2026-11-20. Their publishers report active retesting; the collector still retests configs from the local network.
+
+| Feed | Current contents | Retesting method |
+|---|---|---|
+| [0xRadikal top 100](https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/top100.txt) | 100 configs; auto-updated every 15 minutes | The publisher's verified tier requires a successful proxied request in all 3 runs ([repo and release details](https://github.com/0xRadikal/Free-v2ray-Configs/releases)) |
+| [ProxyRift light](https://raw.githubusercontent.com/rekt0ro/ProxyRift/main/subscriptions/light.txt) | 136 configs; refreshed hourly | The channel author's Throne test reported over 80% working in the light set ([test post](https://t.me/airfield1972/6570)) |
+| [Danialsamadi/v2go](https://raw.githubusercontent.com/Danialsamadi/v2go/main/AllConfigsSub.txt) | 648 configs in the current feed; recent scheduled runs are roughly twice daily | Each published config must pass a real Xray-core request to an HTTP 204 endpoint ([method](https://github.com/Danialsamadi/v2go#how-it-works), [recent runs](https://github.com/Danialsamadi/v2go/actions/workflows/update-configs.yml)) |
+
 > **Behind a proxy:** Telethon reads `ALL_PROXY` / `HTTPS_PROXY` env vars automatically (`socks5://`, `socks4://`, `http://`). If your Throne/sing-box proxy is not in the environment, prefix the command: `ALL_PROXY=socks5://127.0.0.1:<port> python -m vpn_collector.main --setup-tg`
 
 ## Configuration

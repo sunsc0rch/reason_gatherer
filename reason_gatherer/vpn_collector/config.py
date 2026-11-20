@@ -66,7 +66,6 @@ PROXY_ENV_VARS = [
 DEFAULT_SOURCES = [
     {"type": "repo", "value": "VP01596/vless-top15"},
     {"type": "repo", "value": "qopq1366/VlessConfig"},
-    {"type": "repo", "value": "Vovo4ka000/V4kVPN"},
     {"type": "repo", "value": "MustafaBaqer/VestraNet-Nodes"},
     {"type": "repo", "value": "Mr-Meshky/vify"},
     {"type": "repo", "value": "kasesm/Free-Config"},
@@ -76,7 +75,27 @@ DEFAULT_SOURCES = [
     {"type": "repo", "value": "mahdibland/V2RayAggregator"},
     {"type": "repo", "value": "barry-far/V2ray-Config"},
     {"type": "repo", "value": "freefq/free"},
-    {"type": "repo", "value": "peasoft/NoMoreVPN"},
+    # Curated raw feeds from @airfield1972 #keys; endpoints checked 2026-11-20.
+    {"type": "url", "value": "https://raw.githubusercontent.com/Areral/ScarletDevil/refs/heads/main/sub_all.txt"},
+    {"type": "url", "value": "https://raw.githubusercontent.com/TelegaVPN/free-vpn-keys/refs/heads/main/sub/base64/all.txt"},
+    {"type": "url", "value": "https://raw.githubusercontent.com/Edsel-Rahimi/Ariston/data/gold.txt"},
+    {"type": "url", "value": "https://raw.githubusercontent.com/theakres/VPN/refs/heads/main/all"},
+    {"type": "url", "value": "https://gist.githubusercontent.com/zhangqiyang2-max/47f1336a2e41af2e0f7f4313cc8c4bdc/raw/v2ray.txt"},
+    {"type": "url", "value": "https://gist.githubusercontent.com/554mtntjch-code/3a1a5e147050f64d72d5b8f5c6d4d61c/raw/v2ray.txt"},
+    {"type": "url", "value": "https://gist.githubusercontent.com/skysph-dev/5b55986287442543485b30468db3eb65/raw/v2ray.txt"},
+    {"type": "url", "value": "https://gist.githubusercontent.com/st0rer/52759ee3f68c3d4b2f2d53c307867471/raw/hy2_nodes.txt"},
+    {"type": "url", "value": "https://gist.githubusercontent.com/December000/fd23d2530ffc29264297a5e687a79ecd/raw/base64.txt"},
+    {"type": "url", "value": "https://raw.githubusercontent.com/ivanprochorov2022-debug/V2RayN-VPN-Source/refs/heads/main/live.txt"},
+    # Active public Telegram channels selected from @airfield1972 #keys.
+    {"type": "tg", "value": "pass_net"},
+    {"type": "tg", "value": "VPsave"},
+    {"type": "tg", "value": "configv2rayng"},
+    {"type": "tg", "value": "ex_proxies"},
+    {"type": "tg", "value": "FXxNET"},
+    # Live-tested, regularly rebuilt subscriptions; checked 2026-11-20.
+    {"type": "url", "value": "https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/top100.txt"},
+    {"type": "url", "value": "https://raw.githubusercontent.com/rekt0ro/ProxyRift/main/subscriptions/light.txt"},
+    {"type": "url", "value": "https://raw.githubusercontent.com/Danialsamadi/v2go/main/AllConfigsSub.txt"},
 ]
 
 TG_AUTH_FILE    = Path.home() / ".config" / "vpn_collector" / "tg_auth.json"
