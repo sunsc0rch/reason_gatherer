@@ -343,7 +343,16 @@ These feeds were checked on 2026-11-20. Their publishers report active retesting
 
 ## Configuration
 
-All tunable parameters are in `vpn_collector/config.py`:
+Core collector parameters are in `vpn_collector/config.py`; GitHub collection settings use the environment variables below:
+
+GitHub source collection stores recursive tree ETags and file contents by blob SHA in a local cache. The default cache directory is `~/.cache/vpn_collector/github` (or `$XDG_CACHE_HOME/vpn_collector/github`); set `VPN_COLLECTOR_CACHE_DIR` to use another directory. Starred repositories are refreshed at most once every 24 hours during collection; run `--sync-stars USERNAME` to force an immediate refresh. GitHub API requests are spaced by one second by default. When the API reports an exhausted quota, collection waits until the reset time and retries; if the quota is still exhausted after that retry, collection stops before replacing `candidates.txt`.
+
+| Environment variable | Default | Description |
+|---|---|---|
+| `GITHUB_TOKEN` | unset | Optional GitHub API token; only sent to `api.github.com` |
+| `VPN_COLLECTOR_CACHE_DIR` | `~/.cache/vpn_collector/github` | Persistent ETag and blob cache directory |
+| `VPN_COLLECTOR_GITHUB_API_DELAY_SECONDS` | 1.0 | Minimum delay between GitHub REST API requests |
+| `VPN_COLLECTOR_STAR_SYNC_INTERVAL_SECONDS` | 86400 | Minimum interval between automatic starred-repository syncs |
 
 | Parameter | Default | Description |
 |---|---|---|

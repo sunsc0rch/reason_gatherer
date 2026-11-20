@@ -16,7 +16,9 @@ from vpn_collector.config import (
     TCP_BATCH_SIZE, PRIVILEGED_MIN_DAYS, PRIVILEGED_RECHECK_RETRIES,
 )
 from vpn_collector.parser import extract_host_port
-from vpn_collector.sources import fetch_all_configs, add_source, sync_stars
+from vpn_collector.sources import (
+    GitHubRateLimitError, add_source, fetch_all_configs, sync_stars,
+)
 from vpn_collector.sources import fetch_source_texts
 from vpn_collector.subscriptions import (
     extract_subscription_urls, fetch_subscription_configs,
@@ -56,10 +58,17 @@ def cmd_collect(sample: int | None = None) -> None:
         added = sync_stars("sunsc0rch", SOURCES_FILE)
         if added:
             _log.info(f"Added {added} new repo(s) from stars")
+    except GitHubRateLimitError as e:
+        _log.error("GitHub rate limit prevented source sync; aborting collection: %s", e)
+        raise SystemExit(1) from e
     except Exception as e:
         _log.warning(f"Star sync failed (non-fatal): {e}")
     _log.info("Fetching configs from all sources...")
-    configs = fetch_all_configs(SOURCES_FILE)
+    try:
+        configs = fetch_all_configs(SOURCES_FILE)
+    except GitHubRateLimitError as e:
+        _log.error("GitHub rate limit prevented a complete source fetch; aborting: %s", e)
+        raise SystemExit(1) from e
     _log.info(f"Collected {len(configs)} unique configs")
 
     if sample and sample < len(configs):
@@ -430,7 +439,11 @@ def cmd_subscriptions() -> None:
         sys.exit(1)
 
     _log.info("Fetching source text for subscription URL discovery...")
-    source_texts = fetch_source_texts(SOURCES_FILE)
+    try:
+        source_texts = fetch_source_texts(SOURCES_FILE)
+    except GitHubRateLimitError as e:
+        _log.error("GitHub rate limit prevented a complete source fetch; aborting: %s", e)
+        raise SystemExit(1) from e
     urls = extract_subscription_urls(source_texts)
     _log.info("Discovered %d unique HTTP(S) URLs", len(urls))
     working_urls = validate_subscription_urls(urls, singbox_path)
@@ -687,7 +700,11 @@ def main() -> None:
         added = add_source(args.add_source, SOURCES_FILE)
         print("Added." if added else "Already exists.")
     elif args.sync_stars:
-        count = sync_stars(args.sync_stars, SOURCES_FILE)
+        try:
+            count = sync_stars(args.sync_stars, SOURCES_FILE, force=True)
+        except GitHubRateLimitError as e:
+            _log.error("GitHub star sync stopped after rate-limit retries: %s", e)
+            raise SystemExit(1) from e
         print(f"Added {count} new repo(s) from stars.")
 
 
