@@ -92,12 +92,19 @@ async def fetch_all_tg_configs(channels: list[str], limit: int = TG_POSTS_LIMIT)
 
     proxy = _telethon_proxy()
     async with TelegramClient(str(TG_SESSION_FILE), auth["api_id"], auth["api_hash"], proxy=proxy) as client:
-        for channel in channels:
+        for index, channel in enumerate(channels, start=1):
+            logger.info("Telegram channel %d/%d: fetching %s", index, len(channels), channel)
             configs = await fetch_tg_channel_configs(client, channel, limit)
+            channel_added = 0
             for c in configs:
                 if c not in seen:
                     seen.add(c)
                     all_configs.append(c)
+                    channel_added += 1
+            logger.info(
+                "Telegram channel %d/%d complete: %d new configs; %d unique from Telegram",
+                index, len(channels), channel_added, len(all_configs),
+            )
 
     return all_configs
 

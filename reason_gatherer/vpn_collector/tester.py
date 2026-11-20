@@ -782,6 +782,7 @@ async def tunnel_filter(
     on_pass: callable = None,
     verify_tls_cert: bool = False,
     dialer_proxy: tuple[str, int] | None = None,
+    progress_label: str = "Tunnel test",
 ) -> list[str]:
     total = len(candidates)
     done = 0
@@ -789,8 +790,33 @@ async def tunnel_filter(
     semaphore = asyncio.Semaphore(concurrency)
     used_ports: set[int] = set()
     diagnostics = FailureDiagnostics()
+    started_at = time.monotonic()
+    last_progress_at = started_at
 
-    logger.info(f"Tunnel test: {total} candidates, concurrency={concurrency}")
+    if not total:
+        logger.info("%s: no configs to test", progress_label)
+        return []
+
+    logger.info("%s: testing %d configs, concurrency=%d", progress_label, total, concurrency)
+
+    def log_progress() -> None:
+        nonlocal last_progress_at
+        fc, _ = diagnostics.snapshot()
+        summary = ", ".join(f"{name}={count}" for name, count in sorted(fc.items()))
+        percentage = 100 * done / total
+        logger.info(
+            "%s progress: %d/%d tested (%.0f%%) | %d passed | "
+            "failures: %s | elapsed %.0fs",
+            progress_label, done, total, percentage, passed_count,
+            summary or "none", time.monotonic() - started_at,
+        )
+        last_progress_at = time.monotonic()
+
+    async def progress_heartbeat() -> None:
+        while done < total:
+            await asyncio.sleep(15)
+            if done < total and time.monotonic() - last_progress_at >= 15:
+                log_progress()
 
     def get_port() -> int:
         while True:
@@ -815,12 +841,7 @@ async def tunnel_filter(
             if on_pass:
                 on_pass(result)  # called in event loop — no threading issues
         if done % log_every == 0 or done == total:
-            fc, _ = diagnostics.snapshot()
-            summary = ", ".join(f"{name}={count}" for name, count in sorted(fc.items()))
-            logger.info(
-                f"Tunnel test: {done}/{total} tested | {passed_count} passed | "
-                f"failures: {summary or 'none'}"
-            )
+            log_progress()
         return result
 
     # loop.run_in_executor(None, ...) would use asyncio's default executor,
@@ -828,8 +849,16 @@ async def tunnel_filter(
     # concurrency below `concurrency` on any machine with <28 cores, no
     # matter how high TUNNEL_CONCURRENCY is set. Size our own explicitly.
     import concurrent.futures
-    with concurrent.futures.ThreadPoolExecutor(max_workers=concurrency) as executor:
-        results = await asyncio.gather(*[test_one(c, executor) for c in candidates])
+    heartbeat = asyncio.create_task(progress_heartbeat())
+    try:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=concurrency) as executor:
+            results = await asyncio.gather(*[test_one(c, executor) for c in candidates])
+    finally:
+        heartbeat.cancel()
+        try:
+            await heartbeat
+        except asyncio.CancelledError:
+            pass
     _, examples = diagnostics.snapshot()
     for category, example in sorted(examples.items()):
         logger.info("Tunnel failure example [%s]: %s", category, example)

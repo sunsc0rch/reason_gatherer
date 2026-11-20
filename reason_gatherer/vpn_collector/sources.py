@@ -24,6 +24,8 @@ GITHUB_API_MIN_INTERVAL_SECONDS = 1.0
 GITHUB_STAR_SYNC_INTERVAL_SECONDS = 24 * 60 * 60
 GITHUB_PRIMARY_LIMIT_RETRIES = 1
 GITHUB_SECONDARY_LIMIT_RETRIES = 5
+SOURCE_PROGRESS_FILE_INTERVAL = 100
+SOURCE_PROGRESS_TIME_INTERVAL_SECONDS = 10.0
 
 
 _use_proxy = False  # learned for the lifetime of the process once direct access fails
@@ -702,9 +704,11 @@ def fetch_repo_configs(repo: str) -> list[str]:
             and item.get("type") == "blob"
             and _is_fetchable(str(item.get("path", "")))
         ]
+        logger.info("Repo %s: scanning %d candidate files", repo, len(txt_files))
         seen: set[str] = set()
         configs: list[str] = []
-        for item in txt_files:
+        last_progress_at = time.monotonic()
+        for index, item in enumerate(txt_files, start=1):
             path = str(item.get("path", ""))
             try:
                 content = _fetch_repo_blob(session, repo, item, timeout=10)
@@ -717,6 +721,19 @@ def fetch_repo_configs(repo: str) -> list[str]:
                             configs.append(c)
             except Exception as e:
                 logger.debug(f"Skipped {repo}/{path}: {e}")
+
+            now = time.monotonic()
+            if (
+                index == len(txt_files)
+                or index % SOURCE_PROGRESS_FILE_INTERVAL == 0
+                or now - last_progress_at >= SOURCE_PROGRESS_TIME_INTERVAL_SECONDS
+            ):
+                percentage = 100 * index / len(txt_files)
+                logger.info(
+                    "Repo %s progress: %d/%d files (%.0f%%), %d configs found",
+                    repo, index, len(txt_files), percentage, len(configs),
+                )
+                last_progress_at = now
         return configs
     except GitHubRateLimitError:
         raise
@@ -732,29 +749,48 @@ def fetch_all_configs(sources_file: Path) -> list[str]:
     sources = load_sources(sources_file)
     seen: set[str] = set()
     all_configs: list[str] = []
+    non_telegram_sources = [source for source in sources if source["type"] != "tg"]
 
-    for source in sources:
-        if source["type"] == "tg":
-            continue  # handled separately below
+    if non_telegram_sources:
+        logger.info("Fetching configs from %d GitHub/URL source(s)", len(non_telegram_sources))
+
+    for index, source in enumerate(non_telegram_sources, start=1):
+        logger.info(
+            "Source %d/%d (%s): %s",
+            index, len(non_telegram_sources), source["type"], source["value"],
+        )
         if source["type"] == "repo":
             configs = fetch_repo_configs(source["value"])
         else:
             configs = fetch_url_configs(source["value"])
+        source_added = 0
         for c in configs:
             if c not in seen:
                 seen.add(c)
                 all_configs.append(c)
+                source_added += 1
+        logger.info(
+            "Source %d/%d complete: %d new configs; %d unique total",
+            index, len(non_telegram_sources), source_added, len(all_configs),
+        )
 
     tg_channels = [s["value"] for s in sources if s["type"] == "tg"]
     if tg_channels:
+        logger.info("Fetching configs from %d Telegram channel(s)", len(tg_channels))
         try:
             tg_configs = asyncio.run(fetch_all_tg_configs(tg_channels))
         except Exception as e:
             logger.warning("Telegram source failed; skipping Telegram and continuing: %s", e)
             tg_configs = []
+        telegram_added = 0
         for c in tg_configs:
             if c not in seen:
                 seen.add(c)
                 all_configs.append(c)
+                telegram_added += 1
+        logger.info(
+            "Telegram collection complete: %d new configs; %d unique total",
+            telegram_added, len(all_configs),
+        )
 
     return all_configs

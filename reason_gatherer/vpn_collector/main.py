@@ -185,7 +185,13 @@ def cmd_test() -> None:
         passed[0] += 1
         _log.info(f"Saved: {config[:80]}...")
 
-    passed_configs = asyncio.run(tunnel_filter(new_candidates, singbox_path, on_pass=save_immediately))
+    passed_configs = asyncio.run(tunnel_filter(
+        new_candidates,
+        singbox_path,
+        on_pass=save_immediately,
+        log_every=5,
+        progress_label="--test",
+    ))
     for config in passed_configs:
         hp = extract_host_port(config)
         if hp:
@@ -243,6 +249,8 @@ def cmd_test_warp(proxy: tuple[str, int] = WARP_SOCKS_PROXY) -> None:
         singbox_path,
         on_pass=save_warp_immediately,
         dialer_proxy=proxy,
+        log_every=5,
+        progress_label="--test-warp",
     ))
     rotate_run_files(warp_results_dir, MAX_RUN_FILES)
     _log.info(
