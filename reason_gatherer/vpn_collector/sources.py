@@ -22,6 +22,7 @@ GITHUB_API = "https://api.github.com"
 GITHUB_RAW = "https://raw.githubusercontent.com"
 GITHUB_API_MIN_INTERVAL_SECONDS = 1.0
 GITHUB_STAR_SYNC_INTERVAL_SECONDS = 24 * 60 * 60
+GITHUB_TREE_REVALIDATE_SECONDS = 60 * 60
 GITHUB_PRIMARY_LIMIT_RETRIES = 1
 GITHUB_SECONDARY_LIMIT_RETRIES = 5
 SOURCE_PROGRESS_FILE_INTERVAL = 100
@@ -35,6 +36,10 @@ _last_github_api_request_at = 0.0
 
 class GitHubRateLimitError(RuntimeError):
     """Raised when the GitHub API remains rate-limited after scheduled retries."""
+
+    def __init__(self, message: str, retry_at: float | None = None) -> None:
+        super().__init__(message)
+        self.retry_at = retry_at
 
 
 def _github_cache_dir() -> Path:
@@ -152,6 +157,7 @@ def _log_github_api_error(resp: requests.Response, operation: str) -> None:
         f"auth={auth_mode}",
         f"rate_limit={headers.get('X-RateLimit-Limit', '-')}",
         f"rate_remaining={headers.get('X-RateLimit-Remaining', '-')}",
+        f"rate_used={headers.get('X-RateLimit-Used', '-')}",
         f"rate_reset={headers.get('X-RateLimit-Reset', '-')}",
         f"rate_resource={headers.get('X-RateLimit-Resource', '-')}",
         f"retry_after={headers.get('Retry-After', '-')}",
@@ -170,6 +176,24 @@ def _log_github_api_error(resp: requests.Response, operation: str) -> None:
             details.append(f"body={body!r}")
 
     logger.warning("GitHub API %s: %s", operation, " ".join(details))
+
+
+def _log_github_api_success(resp: requests.Response, operation: str) -> None:
+    headers = resp.headers
+    request = getattr(resp, "request", None)
+    request_headers = getattr(request, "headers", {}) or {}
+    auth_mode = "token-header" if request_headers.get("Authorization") else "anonymous"
+    logger.info(
+        "GitHub API %s: status=%s auth=%s rate_limit=%s rate_remaining=%s "
+        "rate_used=%s rate_resource=%s",
+        operation,
+        resp.status_code,
+        auth_mode,
+        headers.get("X-RateLimit-Limit", "-"),
+        headers.get("X-RateLimit-Remaining", "-"),
+        headers.get("X-RateLimit-Used", "-"),
+        headers.get("X-RateLimit-Resource", "-"),
+    )
 
 
 def _is_github_rate_limited(resp: requests.Response) -> bool:
@@ -204,12 +228,27 @@ def _github_retry_delay(resp: requests.Response, retry_number: int) -> float:
     return min(60.0 * (2 ** retry_number), 15 * 60.0)
 
 
+def _tree_revalidate_interval() -> float:
+    raw = os.environ.get("VPN_COLLECTOR_TREE_REVALIDATE_SECONDS")
+    if raw is None:
+        return float(GITHUB_TREE_REVALIDATE_SECONDS)
+    try:
+        return max(0.0, float(raw))
+    except ValueError:
+        logger.warning(
+            "Invalid VPN_COLLECTOR_TREE_REVALIDATE_SECONDS=%r; using 1 hour", raw,
+        )
+        return float(GITHUB_TREE_REVALIDATE_SECONDS)
+
+
 def _github_api_request(
     session: requests.Session,
     method: str,
     url: str,
     *,
     operation: str,
+    primary_limit_retries: int = GITHUB_PRIMARY_LIMIT_RETRIES,
+    secondary_limit_retries: int = GITHUB_SECONDARY_LIMIT_RETRIES,
     **kwargs,
 ) -> requests.Response:
     primary_waits = 0
@@ -219,6 +258,7 @@ def _github_api_request(
         _pace_github_api_request()
         resp = _request(session, method, url, **kwargs)
         if resp.status_code in (200, 304):
+            _log_github_api_success(resp, operation)
             return resp
 
         _log_github_api_error(resp, operation)
@@ -227,19 +267,21 @@ def _github_api_request(
 
         is_primary_limit = resp.headers.get("X-RateLimit-Remaining") == "0"
         if is_primary_limit:
-            if primary_waits >= GITHUB_PRIMARY_LIMIT_RETRIES:
-                raise GitHubRateLimitError(
-                    f"GitHub primary rate limit remained exhausted after waiting: {operation}"
-                )
             retry_number = primary_waits
+            if primary_waits >= primary_limit_retries:
+                raise GitHubRateLimitError(
+                    f"GitHub primary rate limit is exhausted: {operation}",
+                    retry_at=time.time() + _github_retry_delay(resp, retry_number),
+                )
             primary_waits += 1
             limit_kind = "primary"
         else:
-            if secondary_waits >= GITHUB_SECONDARY_LIMIT_RETRIES:
-                raise GitHubRateLimitError(
-                    f"GitHub secondary rate limit remained active after retries: {operation}"
-                )
             retry_number = secondary_waits
+            if secondary_waits >= secondary_limit_retries:
+                raise GitHubRateLimitError(
+                    f"GitHub secondary rate limit is active: {operation}",
+                    retry_at=time.time() + _github_retry_delay(resp, retry_number),
+                )
             secondary_waits += 1
             limit_kind = "secondary"
 
@@ -275,6 +317,10 @@ def _tree_cache_path(repo: str) -> Path:
     return _github_cache_dir() / "trees" / f"{_cache_key(repo.lower())}.json"
 
 
+def _github_rate_limit_state_path() -> Path:
+    return _github_cache_dir() / "api_rate_limit.json"
+
+
 def _fetch_repo_tree(
     session: requests.Session,
     repo: str,
@@ -283,6 +329,29 @@ def _fetch_repo_tree(
     cache_path = _tree_cache_path(repo)
     cache = _read_json_cache(cache_path)
     cached_tree = cache.get("tree") if cache else None
+    now = time.time()
+
+    if isinstance(cached_tree, list):
+        rate_state = _read_json_cache(_github_rate_limit_state_path())
+        rate_limit_until = rate_state.get("retry_at") if rate_state else None
+        if isinstance(rate_limit_until, (int, float)) and rate_limit_until > now:
+            logger.info(
+                "GitHub API rate limit active for %.0f more seconds; using cached tree for %s",
+                rate_limit_until - now, repo,
+            )
+            return cached_tree
+
+        checked_at = cache.get("checked_at") if cache else None
+        if isinstance(checked_at, (int, float)):
+            age = max(0.0, now - checked_at)
+            interval = _tree_revalidate_interval()
+            if age < interval:
+                logger.info(
+                    "Using cached GitHub tree for %s; ETag recheck in %.0f seconds",
+                    repo, interval - age,
+                )
+                return cached_tree
+
     headers = _github_headers()
     etag = cache.get("etag") if cache else None
     if isinstance(etag, str) and etag:
@@ -290,12 +359,40 @@ def _fetch_repo_tree(
 
     url = f"{GITHUB_API}/repos/{repo}/git/trees/HEAD"
     request_args = {"params": {"recursive": "1"}, "timeout": 15}
-    resp = _github_api_request(
-        session, "GET", url, operation=operation, headers=headers, **request_args
-    )
+    has_cached_tree = isinstance(cached_tree, list)
+    try:
+        resp = _github_api_request(
+            session, "GET", url, operation=operation, headers=headers,
+            primary_limit_retries=0 if has_cached_tree else GITHUB_PRIMARY_LIMIT_RETRIES,
+            secondary_limit_retries=0 if has_cached_tree else GITHUB_SECONDARY_LIMIT_RETRIES,
+            **request_args,
+        )
+    except GitHubRateLimitError as e:
+        if not has_cached_tree:
+            raise
+        retry_at = e.retry_at or now + GITHUB_TREE_REVALIDATE_SECONDS
+        try:
+            _atomic_write_json(
+                _github_rate_limit_state_path(),
+                {"retry_at": retry_at},
+            )
+        except OSError as cache_error:
+            logger.warning("Could not save GitHub rate-limit state: %s", cache_error)
+        logger.warning(
+            "GitHub rate limit prevented refreshing %s; using cached tree until reset",
+            repo,
+        )
+        return cached_tree
 
     if resp.status_code == 304:
         if isinstance(cached_tree, list):
+            try:
+                _atomic_write_json(
+                    cache_path,
+                    {"etag": etag, "tree": cached_tree, "checked_at": time.time()},
+                )
+            except OSError as e:
+                logger.warning("Could not update GitHub tree cache timestamp for %s: %s", repo, e)
             logger.info("GitHub tree unchanged for %s; using ETag cache", repo)
             return cached_tree
         logger.warning("GitHub returned 304 for %s without a usable tree cache; retrying", repo)
@@ -323,7 +420,10 @@ def _fetch_repo_tree(
         response_etag = resp.headers.get("ETag")
         if isinstance(response_etag, str) and response_etag:
             try:
-                _atomic_write_json(cache_path, {"etag": response_etag, "tree": tree})
+                _atomic_write_json(
+                    cache_path,
+                    {"etag": response_etag, "tree": tree, "checked_at": time.time()},
+                )
             except OSError as e:
                 logger.warning("Could not save GitHub tree cache for %s: %s", repo, e)
 

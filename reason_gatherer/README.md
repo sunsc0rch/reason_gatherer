@@ -1,52 +1,190 @@
-# reason_gatherer / vpn_collector
+# reason_gatherer
 
-Scrapes free VPN configs from GitHub repositories, filters them by TCP reachability and tunnel quality (speed + Claude.com access), and saves verified configs to rotating result files.
+Two independent collectors for public VPN configs:
 
-## Verified configs (updated every 2–3 days)
+- `vpn_collector` gathers proxy links, checks TCP reachability, then tests tunnel speed and Claude.com access.
+- `awg_collector` tests AmneziaWG configs and builds importable archives.
+
+## Quick start
+
+To run the main collector, use Python 3.10+ and install [sing-box](https://github.com/SagerNet/sing-box):
+
+```bash
+pip install -r requirements.txt
+python -m vpn_collector.main --full
+```
+
+`--full` fetches sources, filters candidates by TCP, then tunnel-tests them. For step-by-step runs, use `--collect` and then `--test`.
+
+## Ready-to-use results
 
 | File | Description |
 |---|---|
-| [**known_good.txt**](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/known_good.txt) | All verified configs ever collected — use as subscription URL |
-| [**subscriptions.txt**](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/subscriptions.txt) | Third-party subscription URLs with at least one verified working node |
-| [subscription_configs_3.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/subscription_configs_3.txt) | Currently working configs from subscription row 3 |
-| [subscription_configs_5.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/subscription_configs_5.txt) | Currently working configs from subscription row 5 |
-| [subscription_configs_7.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/subscription_configs_7.txt) | Currently working configs from subscription row 7 |
-| [run_2026-11-17.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-11-17.txt) | Latest run |
-| [run_2026-11-07.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-11-07.txt) | Previous run |
-| [run_2026-10-31.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-10-31.txt) | Earlier run |
-| [run_2026-10-22.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-10-22.txt) | Earlier run |
-| [run_2026-10-09.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-10-09.txt) | Earlier run |
-| [recheck_2026-11-19.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/recheck_2026-11-19.txt) | Latest recheck (configs re-verified from known_good) |
+| [**known_good.txt**](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/known_good.txt) | All verified VPN configs; usable as a subscription URL |
+| [**subscriptions.txt**](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/subscriptions.txt) | Third-party subscription feeds with at least one working config |
+| [subscription_configs_3.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/subscription_configs_3.txt) | Working configs from subscription row 3 |
+| [subscription_configs_5.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/subscription_configs_5.txt) | Working configs from subscription row 5 |
+| [subscription_configs_7.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/subscription_configs_7.txt) | Working configs from subscription row 7 |
+| [Latest run](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-11-17.txt) | Most recent dated run |
+| [Latest recheck](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/recheck_2026-11-19.txt) | Previously verified configs that still pass |
 
-Configs marked `+++` passed the Claude.com access check (unblocked from Russia). Configs marked `---` passed the speed test but Claude.com was blocked through them.
+Configs marked `+++` passed the Claude.com access check. `---` means the tunnel passed its speed test but Claude.com was blocked.
 
----
+## VPN collector commands
 
-## AmneziaWG configs (for AmneziaVPN 1.0.1)
+### Run and test
 
-A separate collector scrapes and tunnel-tests AmneziaWG configs from community sources and packages the fastest ones for direct import into the Amnezia app.
+```bash
+# Complete collection and tunnel test
+python -m vpn_collector.main --full
 
-| Path | Description |
+# Run the stages separately
+python -m vpn_collector.main --collect
+python -m vpn_collector.main --test
+
+# Test remaining candidates through WARP's local SOCKS proxy
+python -m vpn_collector.main --test-warp
+
+# Run on a random sample
+python -m vpn_collector.main --collect --sample 30000
+python -m vpn_collector.main --full    --sample 50000
+
+# Re-test known_good configs without changing known_good.txt
+python -m vpn_collector.main --recheck
+```
+
+### Subscription feeds
+
+```bash
+# Find and validate subscription URLs in configured sources
+python -m vpn_collector.main --subscriptions
+
+# Test all saved subscriptions, or one numbered row
+python -m vpn_collector.main --test-subscriptions
+python -m vpn_collector.main --test-subscription 3
+```
+
+### Sources and Telegram
+
+```bash
+python -m vpn_collector.main --add-source user/repo
+python -m vpn_collector.main --add-source https://example.com/sub.txt
+python -m vpn_collector.main --add-source t.me/channelname
+python -m vpn_collector.main --sync-stars <github_username>
+python -m vpn_collector.main --setup-tg
+```
+
+Telegram is optional. For the one-time setup, install Telethon and authenticate with an API ID and hash from [my.telegram.org](https://my.telegram.org):
+
+```bash
+pip install telethon>=1.36
+python -m vpn_collector.main --setup-tg
+```
+
+Credentials are stored under `~/.config/vpn_collector/`, outside the repository. Add public channels with `--add-source t.me/channelname`; accepted forms include `t.me/name`, `t.me/s/name`, and `https://t.me/name`. Each collection scans the latest 50 posts. Without Telegram setup, collection continues with the other sources.
+
+Behind a proxy, set `ALL_PROXY` for Telegram setup:
+
+```bash
+ALL_PROXY=socks5://127.0.0.1:<port> python -m vpn_collector.main --setup-tg
+```
+
+### Diagnose and inspect
+
+```bash
+# Diagnose the broadest available recheck file
+python -m vpn_collector.main --diagnose
+
+# Diagnose a specific file, or use WARP SOCKS as an egress comparison
+python -m vpn_collector.main --diagnose results/recheck_2026-11-04.txt
+python -m vpn_collector.main --diagnose --proxy 127.0.0.1:40000
+
+# Show result counts
+python -m vpn_collector.main --stats
+```
+
+The diagnosis report labels each endpoint `blocked_by_isp`, `server_dead`, or `unknown`. `--proxy` uses SOCKS5 to distinguish an ISP block from a dead server. Keep WARP in proxy mode for honest direct tests; system-tunnel mode routes every probe through WARP.
+
+## Results and workflow
+
+The main collector works in two stages:
+
+```text
+Sources → TCP filter → candidates.txt → tunnel test → known_good.txt + run_YYYY-MM-DD.txt
+```
+
+| Path | Purpose |
 |---|---|
-| [**results_awg/all_configs.zip**](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results_awg/all_configs.zip) | Import this into the Amnezia app — the 50 fastest configs that change your exit country, capped at 5 per /24 subnet |
-| `results_awg/known_good/*.conf` | Full pool of currently-passing configs that exit outside Russia (one file per endpoint) |
-| [results_awg/all_configs_warp.zip](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results_awg/all_configs_warp.zip) | Configs that pass handshake+speed but exit through Cloudflare WARP anycast back into Russia — still useful for DPI bypass, just no geo change |
-| `results_awg/known_good_warp/*.conf` | Full pool of the WARP-anycast configs above |
+| `results/known_good.txt` | Permanent list of verified configs; never overwritten |
+| `results/run_YYYY-MM-DD.txt` | Dated test results; the 5 newest runs are kept |
+| `results/candidates.txt` | Intermediate queue produced by `--collect` |
+| `results/tcp_cache.txt` | Cached TCP-verified host:port pairs |
+| `results/recheck_YYYY-MM-DD.txt` | Results from `--recheck` |
+| `results/subscriptions.txt` | Validated third-party subscription URLs |
+| `results/subscription_configs.txt` | Working configs from all saved subscriptions |
+| `results/subscription_configs_N.txt` | Working configs from one subscription row |
 
-**Import:** Amnezia app → Add VPN → From file → `all_configs.zip` (or `all_configs_warp.zip` if you only need DPI bypass, not a geo change)
+Subscription outputs are snapshots and update only when the corresponding command completes successfully. Tunnel tests report failures by category, including certificate, handshake, speed, and unsupported transport errors. The current sing-box supports HTTPUpgrade but not XHTTP; XHTTP configs are skipped.
 
-Each config is real-tunnel-tested (handshake verified + speed ≥ 1 Mbit/s). Configs are split by exit country: those landing outside Russia go to `known_good/`, those landing back in Russia (typically WARP anycast routing to the nearest edge) go to `known_good_warp/` instead of being discarded. Both pools are rebuilt to include only the 50 fastest configs (capped per /24) after each run; `--recheck` also moves a config between the two pools if its exit country changes.
+## Sources
 
-Sources: Telegram [@amnezia_wg](https://t.me/amnezia_wg), [@vpnconfigsgive](https://t.me/vpnconfigsgive), [Delta-Kronecker/WARP-Config](https://github.com/Delta-Kronecker/WARP-Config).
+The collector reads GitHub repositories, raw URLs, and optional Telegram channels. The active list includes the feeds below. Reported success rates come from their publishers; the collector re-tests configs from the local network.
 
-**Dependencies:**
+<details>
+<summary>Curated feeds and channels</summary>
 
-| Dependency | Purpose |
+Selected public posts from [@airfield1972](https://t.me/s/airfield1972?q=%23keys); checked 2026-11-20:
+
+| Source | Feed type | Publisher-reported result |
+|---|---|---|
+| [ScarletDevil](https://raw.githubusercontent.com/Areral/ScarletDevil/refs/heads/main/sub_all.txt) | Raw subscription, about every 4 hours | 205/214 under 100 ms ([post](https://t.me/airfield1972/6660)) |
+| [TelegaVPN](https://raw.githubusercontent.com/TelegaVPN/free-vpn-keys/refs/heads/main/sub/base64/all.txt) | Base64 subscription | 64/77 working ([post](https://t.me/airfield1972/6653)) |
+| [Ariston gold](https://raw.githubusercontent.com/Edsel-Rahimi/Ariston/data/gold.txt) | VLESS feed | 249/311 passed speed test ([post](https://t.me/airfield1972/6686)) |
+| [theakres/VPN](https://raw.githubusercontent.com/theakres/VPN/refs/heads/main/all) | Combined feed | 241/717 passed speed test ([post](https://t.me/airfield1972/6694)) |
+| [zhangqiyang2-max](https://gist.githubusercontent.com/zhangqiyang2-max/47f1336a2e41af2e0f7f4313cc8c4bdc/raw/v2ray.txt) | V2Ray text | 70/87 across V2Ray and Clash feeds ([post](https://t.me/airfield1972/6718)) |
+| [554mtntjch-code](https://gist.githubusercontent.com/554mtntjch-code/3a1a5e147050f64d72d5b8f5c6d4d61c/raw/v2ray.txt) | V2Ray text | 14/20 passed ([post](https://t.me/airfield1972/6727)) |
+| [skysph-dev](https://gist.githubusercontent.com/skysph-dev/5b55986287442543485b30468db3eb65/raw/v2ray.txt) | V2Ray text | 15/21 in Throne; 20/21 in FLClash ([post](https://t.me/airfield1972/6746)) |
+| [st0rer Hysteria2](https://gist.githubusercontent.com/st0rer/52759ee3f68c3d4b2f2d53c307867471/raw/hy2_nodes.txt) | Plain-text Hysteria2 | 18/25 in Throne ([post](https://t.me/airfield1972/6757)) |
+| [December000](https://gist.githubusercontent.com/December000/fd23d2530ffc29264297a5e687a79ecd/raw/base64.txt) | Base64 feed | 12/13 working ([post](https://t.me/airfield1972/6697)) |
+| [V2RayN-VPN-Source](https://raw.githubusercontent.com/ivanprochorov2022-debug/V2RayN-VPN-Source/refs/heads/main/live.txt) | Large live feed | 54 passed from 5,087 parsed ([post](https://t.me/airfield1972/6731)) |
+
+These Telegram channels are also scanned across their latest 50 posts:
+
+| Channel | Publisher-reported result |
 |---|---|
-| `requests` | HTTP fetching of configs and ZIP archives |
-| `telethon` | Scraping Telegram channels (optional — skipped if absent) |
-| `amneziawg-go` | Userspace AWG daemon for tunnel testing (binary, not pip) |
-| `awg`, `awg-quick` | AWG CLI tools — part of [amneziawg-tools](https://github.com/amnezia-vpn/amneziawg-tools) |
+| [@pass_net](https://t.me/s/pass_net) | 38/65 working ([post](https://t.me/airfield1972/6648)) |
+| [@VPsave](https://t.me/s/VPsave) | 48/138 passed ([post](https://t.me/airfield1972/6664)) |
+| [@configv2rayng](https://t.me/s/configv2rayng) | 197/592 passed speed checks ([post](https://t.me/airfield1972/6705)) |
+| [@ex_proxies](https://t.me/s/ex_proxies) | 127/335 passed speed checks ([post](https://t.me/airfield1972/6736)) |
+| [@FXxNET](https://t.me/s/FXxNET) | 202/215 under 100 ms ([post](https://t.me/airfield1972/6691)) |
+
+Other recently checked feeds:
+
+| Feed | Current contents and publisher's checks |
+|---|---|
+| [0xRadikal top 100](https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/top100.txt) | 100 configs; refreshed every 15 minutes; each verified config passes a proxied request in 3 runs ([details](https://github.com/0xRadikal/Free-v2ray-Configs/releases)) |
+| [ProxyRift light](https://raw.githubusercontent.com/rekt0ro/ProxyRift/main/subscriptions/light.txt) | 136 configs; refreshed hourly; publisher reported over 80% working ([post](https://t.me/airfield1972/6570)) |
+| [Danialsamadi/v2go](https://raw.githubusercontent.com/Danialsamadi/v2go/main/AllConfigsSub.txt) | 648 configs; publisher runs an Xray-core request to an HTTP 204 endpoint ([method](https://github.com/Danialsamadi/v2go#how-it-works), [recent runs](https://github.com/Danialsamadi/v2go/actions/workflows/update-configs.yml)) |
+
+</details>
+
+## AmneziaWG collector
+
+The separate `awg_collector` tests AmneziaWG configs and builds archives for the Amnezia app. `all_configs.zip` contains up to 50 fastest configs with exit countries outside Russia; `all_configs_warp.zip` contains configs that exit through WARP anycast back into Russia and are useful for DPI bypass.
+
+```bash
+python -m awg_collector.main --collect
+python -m awg_collector.main --recheck
+python -m awg_collector.main --export
+python -m awg_collector.main --stats
+```
+
+Import an archive in Amnezia: **Add VPN → From file**. Each included config passes a tunnel handshake and a speed test of at least 1 Mbit/s. Sources include Telegram [@amnezia_wg](https://t.me/amnezia_wg), [@vpnconfigsgive](https://t.me/vpnconfigsgive), and [Delta-Kronecker/WARP-Config](https://github.com/Delta-Kronecker/WARP-Config).
+
+<details>
+<summary>AWG installation requirements</summary>
+
+Install `requests` and `telethon` from `requirements.txt`. Tunnel testing additionally needs Go 1.25+, `amneziawg-go`, and `awg`/`awg-quick` from [amneziawg-tools](https://github.com/amnezia-vpn/amneziawg-tools):
 
 ```bash
 # Python deps (already in requirements.txt)
@@ -65,322 +203,88 @@ echo "$USER ALL=(ALL) NOPASSWD: /usr/local/bin/awg,/usr/local/bin/awg-quick,/usr
   | sudo tee /etc/sudoers.d/awg_collector
 ```
 
+</details>
+
+## WARP and network diagnosis
+
+`--test-warp` tests candidates through the local WARP SOCKS5 proxy (`127.0.0.1:40000`) and stores results under `results/warp/`. Hysteria, Hysteria2, Hy2, and TUIC are skipped because this SOCKS proxy does not carry UDP. For ISP-block diagnosis, pass the same SOCKS address to `--diagnose --proxy`.
+
+Use `warp-cli mode proxy` for these checks. Do not use `warp-cli mode warp`: system-tunnel mode routes direct probes through WARP and makes blocked endpoints appear reachable.
+
+<details>
+<summary>Host-specific setup: warp-cli, Throne, and zapret</summary>
+
+### warp-cli
+
+`warp-cli mode proxy` exposes SOCKS5 at `127.0.0.1:40000`. The protocol is MASQUE; check with `warp-cli settings`. To verify egress:
+
 ```bash
-# Fetch + test all sources, update known_good pool
-python -m awg_collector.main --collect
-
-# Re-verify existing pool, remove dead configs
-python -m awg_collector.main --recheck
-
-# Rebuild archive from current pool (top 50 by speed)
-python -m awg_collector.main --export
-
-# Stats
-python -m awg_collector.main --stats
+curl --socks5-hostname 127.0.0.1:40000 https://www.cloudflare.com/cdn-cgi/trace
 ```
 
----
+### Throne
 
-## How it works
+Throne's mixed system proxy listens at `127.0.0.1:2080`. Its built-in WARP can be configured in **Routing Settings → Warp**.
 
-```
-GitHub repos / raw URLs / Telegram channels
-        ↓
-  sync_stars + fetch_all_configs   — auto-syncs starred repos, deduplicates
-        ↓
-   TCP pre-filter                  — async TCP check per unique host:port
-        ↓
-   candidates.txt                  — checkpoint: survives interruption
-        ↓
-  sing-box tunnel test             — real tunnel: speedtest ≥ 1 Mbit/s + Claude.com check
-        ↓
-  known_good.txt                   — permanent log of all verified configs
-  run_YYYY-MM-DD.txt               — dated run file (last 5 kept)
-```
+- **WARP egress:** select MASQUE, generate a WARP config, then enable it. The node connects directly; WARP changes the exit IP. This does not unblock ISP-blocked nodes.
+- **WARP ingress:** add a SOCKS profile for `127.0.0.1:40000`, then choose it as the group's **Front Proxy**. WARP then carries the connection to the node while the exit IP remains the node's.
 
-### Why "unreachable" needs a diagnosis
+For headless control, enable Throne API in **Preferences → Integration Settings**. Example API operations are `thronectl settings set enable_warp=…` and `thronectl call POST /v1/warp/register`.
 
-A plain TCP timeout means three different things: a dead server, a closed
-port, or the ISP swallowing the packet by destination IP. They are told apart
-by `--diagnose`, which reports `blocked_by_isp` vs `server_dead` per endpoint:
+### zapret
 
-- **TTL-capped ping** — a live-but-ICMP-silent host still yields a
-  *Time-to-live-exceeded* answer from an intermediate router at TTL 5, while a
-  blackholed IP stays silent at TTL 5/8/12: the packet dies inside the access
-  network, before the first hop that would answer. Evidence is inferred.
-- **SOCKS5 egress (`--proxy`)** — the same endpoint that times out directly
-  and completes a TCP CONNECT through a proxy cannot be dead. Evidence is
-  conclusive, and it is ~2× faster than the ping sweep.
-
-The diagnosis is local: `blocked_by_isp` says nothing about whether the host
-is alive — it may be blackholed *and* dead at the same time. Check from
-another network (or via check-host.net) to separate those.
-
-WARP note: `warp-cli mode warp` routes the whole system through the tunnel, so
-every probe looks alive and the report degenerates. `warp-cli mode proxy`
-keeps traffic direct while exposing a local SOCKS5 (default
-`127.0.0.1:40000`), which is exactly what `--proxy` wants.
-
-## WARP integration: warp-cli, Throne, zapret
-
-Three independent pieces on this box; they run side by side.
-
-### warp-cli — SOCKS egress for probing
-
-- `warp-cli mode proxy` → local SOCKS5 `127.0.0.1:40000`, consumed by
-  `--proxy`. Transport is MASQUE (QUIC/HTTP3, UDP 443 → Cloudflare anycast),
-  not WireGuard: `warp-cli settings` shows `WARP tunnel protocol: MASQUE`.
-- Honest A/B on one 227-config pool, one-minute interval: **8 configs /
-  6 endpoints direct vs 147 / 13 through WARP**. All 12 revived endpoints
-  were `blocked_by_isp`; 5 of the 17 stayed dead even via WARP (blackholed
-  *and* dead at once).
-
-### Testing VPN candidates directly or through WARP
-
-`--test` checks candidates directly, without proxy environment variables, and
-stops if WARP is connected as a system tunnel. Use `--test-warp` to retry
-through the local `warp-cli mode proxy` SOCKS5 service at `127.0.0.1:40000`;
-WARP successes are stored separately in `results/warp/`. Hysteria, Hysteria2,
-Hy2, and TUIC are skipped because this SOCKS proxy does not support UDP.
-
-### Throne — system proxy with built-in WARP
-
-Throne serves the system proxy (mixed inbound `127.0.0.1:2080`,
-`system_proxy_enabled=true`) and ships its own WARP client (Routing
-Settings → Warp tab, setting `enable_warp`; upstream
-[throneproj/Throne](https://github.com/throneproj/Throne)). Two different
-uses — pick by what you need:
-
-1. **WARP as egress (whitening).** Warp tab → Mode **MASQUE** →
-   *Generate Warp Config* (registers a Cloudflare device; the MASQUE
-   identity is separate from the WireGuard one already stored) →
-   *Enable Warp*. Generated topology is `app → node → WARP → target`:
-   `generate.cpp` prepends the synthetic warp profile and points the node
-   outbound's `detour` at it, so the **node dial stays direct** and only
-   the exit IP becomes Cloudflare. Does *not* unblock `blocked_by_isp`
-   nodes.
-2. **WARP as ingress (reach blackholed nodes).** Add a profile of type
-   `socks` → `127.0.0.1:40000` (warp-cli proxy mode), then
-   Group → Edit Group → **Front Proxy** → select it. The front proxy is
-   appended after the main hop and becomes its dialer:
-   `local → WARP(SOCKS) → node → target`. The node becomes reachable
-   through the blackhole while the exit IP stays the node's. A native
-   `masque` profile (profile editor → *Register a new Cloudflare WARP
-   device*) can replace the warp-cli SOCKS hop if you don't want a second
-   WARP client.
-
-For headless control turn on the Throne API (Preferences → Integration
-Settings) and drive it with `thronectl` (`settings set enable_warp=…`,
-`call POST /v1/warp/register`, …). It is off by default and `thronectl`
-refuses to work without an API key.
-
-### zapret — fuse for the WARP transport
-
-zapret already queues this box's own UDP/443 (nft `postnat`:
-`udp dport 443 ct original packets 1-9 … queue to 200`), so warp-svc's
-MASQUE packets were reaching nfqws all along — only a matching rule was
-missing. Added to the head of `NFQWS_OPT` in `/opt/zapret/config`
-(backup `config.backup-warp-20261108-*`):
+The local zapret rule covers DPI inspection of the MASQUE hostname. It does not bypass a destination-IP block or per-IP throttling. The rule belongs at the start of `NFQWS_OPT` in `/opt/zapret/config`:
 
 ```
 --filter-udp=443 --hostlist-domains=cloudflareclient.com --hostlist-exclude-domains=api.cloudflareclient.com --dpi-desync=fake --dpi-desync-repeats=6 --dpi-desync-fake-quic=/opt/zapret/files/fake/quic_6.bin --new
 --filter-tcp=443 --hostlist-domains=cloudflareclient.com --hostlist-exclude-domains=api.cloudflareclient.com --dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,midsld --dpi-desync-repeats=6 --dpi-desync-fake-tls=/opt/zapret/files/fake/tls_clienthello_www_google_com.bin --dpi-desync-fooling=badsum --new
 ```
 
-`sudo systemctl restart zapret` picks it up. Verified after the restart:
-`curl --socks5-hostname 127.0.0.1:40000 https://www.cloudflare.com/cdn-cgi/trace`
-still answers `warp=on`, Throne's inbound still returns 204, direct
-traffic unaffected.
-
-What the fuse covers — and what it does not:
-
-| Block vector | zapret |
-|---|---|
-| DPI parses the QUIC Initial / TLS ClientHello and bans SNI `*.cloudflareclient.com` | **defeated** — fake QUIC/TLS packets poison DPI state before the real SNI is readable |
-| destination-IP blackhole of `engage.cloudflareclient.com` (documented in the wild, e.g. `162.159.192.0/23`) | **not covered** — the packet dies before nfqws; change the endpoint (`warp_masque_ep` / `warp_api_hosts`) or carry WARP over another proxy |
-| per-IP throttling (RU ISPs have throttled Cloudflare to 16 KB/conn since 2025-06-09) | **not covered** — measured on this box: 10 MB through WARP 3.17 MB/s vs 3.25 MB/s direct, so the tunnel is not throttled yet |
-
-Revert: `sudo cp /opt/zapret/config.backup-warp-<timestamp> /opt/zapret/config && sudo systemctl restart zapret`.
-
-## Requirements
-
-- Python 3.10+
-- [sing-box](https://github.com/SagerNet/sing-box) binary (auto-discovered from common install paths)
+Apply and verify; the config backup pattern is shown below:
 
 ```bash
-pip install -r requirements.txt
+sudo systemctl restart zapret
+curl --socks5-hostname 127.0.0.1:40000 https://www.cloudflare.com/cdn-cgi/trace
+sudo cp /opt/zapret/config.backup-warp-<timestamp> /opt/zapret/config && sudo systemctl restart zapret
 ```
 
-## Usage
-
-```bash
-# Full run: fetch → TCP filter → tunnel test
-python -m vpn_collector.main --full
-
-# Discover third-party subscription URLs in configured sources and keep only those with a working node
-python -m vpn_collector.main --subscriptions
-
-# Test all configs from saved subscription URLs (strict TLS) → subscription_configs.txt
-python -m vpn_collector.main --test-subscriptions
-
-# Test one 1-based row from subscriptions.txt → subscription_configs_3.txt
-python -m vpn_collector.main --test-subscription 3
-
-# Step by step:
-python -m vpn_collector.main --collect        # fetch and TCP-filter → candidates.txt
-python -m vpn_collector.main --test           # tunnel-test candidates.txt → known_good.txt
-python -m vpn_collector.main --test-warp      # test remaining candidates through WARP → results/warp/
-
-# Quick run on a random subset
-python -m vpn_collector.main --collect --sample 30000
-python -m vpn_collector.main --full    --sample 50000
-
-# Re-verify existing known_good configs (check if still alive)
-python -m vpn_collector.main --recheck        # → recheck_YYYY-MM-DD.txt (known_good untouched)
-
-# Diagnose WHY endpoints are unreachable: ISP destination-IP block vs dead server
-python -m vpn_collector.main --diagnose                              # broadest recheck file
-python -m vpn_collector.main --diagnose results/recheck_2026-11-04.txt
-python -m vpn_collector.main --diagnose --proxy 127.0.0.1:40000      # SOCKS5 egress → proof
-# → results/diagnose_<source>_<date>.txt with a status per endpoint:
-#   blocked_by_isp  packet never leaves the access network (blackholed destination IP)
-#   server_dead     route is clear, host/port just does not answer
-#   unknown         neither probe could decide (no ping / bad name)
-
-# Manage sources
-python -m vpn_collector.main --add-source user/repo          # add GitHub repo
-python -m vpn_collector.main --add-source https://example.com/sub.txt  # add raw URL
-python -m vpn_collector.main --add-source t.me/channelname   # add Telegram channel
-python -m vpn_collector.main --sync-stars <github_username>  # manually sync starred repos
-
-# Telegram setup (one-time, requires api_id + api_hash from my.telegram.org)
-python -m vpn_collector.main --setup-tg
-
-# Stats
-python -m vpn_collector.main --stats
-```
-
-## Output
-
-```
-results/
-├── known_good.txt           # all verified configs ever found (never deleted)
-├── subscriptions.txt        # discovered third-party subscription URLs with live nodes
-├── subscription_configs.txt # current working configs from all saved subscriptions
-├── subscription_configs_N.txt # current working configs from one selected subscription
-├── run_YYYY-MM-DD.txt       # up to 5 dated run files (oldest auto-deleted)
-├── recheck_YYYY-MM-DD.txt   # on-demand recheck results from known_good
-├── candidates.txt           # TCP-passed queue (intermediate, not tracked in git)
-└── tcp_cache.txt            # TCP-verified host:ports cache (not tracked in git)
-```
-
-`known_good.txt` is never overwritten. Paste the raw URL into Throne / Hiddify as a subscription source.
-`subscriptions.txt` contains external subscription URLs discovered in the configured sources and validated through at least one working tunnel. Refresh it independently with `python -m vpn_collector.main --subscriptions`.
-`--test-subscriptions` downloads every saved feed, tests all unique parsed configs with TLS certificate validation enabled, and replaces `subscription_configs.txt` with the passing configs. To test only one entry, pass its 1-based row number from `subscriptions.txt` to `--test-subscription`; that run writes `subscription_configs_N.txt` and leaves the aggregate file alone. These outputs are snapshots, refreshed only when the corresponding flag completes successfully.
-Tunnel scan progress now separates certificate, Reality handshake, transport handshake, endpoint connection, speed-probe, measured-low-speed, and unsupported-transport failures. Upstream sing-box supports HTTPUpgrade but not XHTTP; XHTTP links are reported as unsupported and are not tested as TCP. See the [sing-box V2Ray transport reference](https://sing-box.sagernet.org/configuration/shared/v2ray-transport/).
-
-## Telegram sources
-
-Telegram channels are an optional additional source of configs.
-
-**One-time setup:**
-
-```bash
-pip install telethon>=1.36
-python -m vpn_collector.main --setup-tg   # logs in via phone + SMS code
-```
-
-Credentials are stored in `~/.config/vpn_collector/tg_auth.json` (mode 600) and the session in `~/.config/vpn_collector/tg.session` — never inside the repo.
-
-**Add channels:**
-
-```bash
-python -m vpn_collector.main --add-source t.me/channelname
-```
-
-Accepted formats: `t.me/name`, `t.me/s/name`, `https://t.me/name`. The last 50 posts per channel are scanned for VPN configs on every `--collect` run.
-
-If Telethon is not installed or setup was not run, `--collect` continues normally without TG — no crash.
-
-### Curated feeds from “Запасной аэродром”
-
-The active source list includes these feeds and Telegram channels selected from the public [`@airfield1972` `#keys` posts](https://t.me/s/airfield1972?q=%23keys). Raw endpoints and channel activity were checked on 2026-11-20. The success counts below were reported by the channel author, who tested from Haifa; the collector still checks configs from the local network on each run.
-
-| Source | Collector input | Reported result |
-|---|---|---|
-| [ScarletDevil](https://raw.githubusercontent.com/Areral/ScarletDevil/refs/heads/main/sub_all.txt) | Raw subscription, refreshed about every 4 hours | 205 of 214 configs under 100 ms passed the speed test ([post](https://t.me/airfield1972/6660)) |
-| [TelegaVPN](https://raw.githubusercontent.com/TelegaVPN/free-vpn-keys/refs/heads/main/sub/base64/all.txt) | Base64 subscription | 64 of 77 configs worked ([post](https://t.me/airfield1972/6653)) |
-| [Ariston gold](https://raw.githubusercontent.com/Edsel-Rahimi/Ariston/data/gold.txt) | Curated VLESS feed | 249 of 311 passed the speed test ([post](https://t.me/airfield1972/6686)) |
-| [theakres/VPN](https://raw.githubusercontent.com/theakres/VPN/refs/heads/main/all) | Combined raw feed | 241 of 717 passed the speed test ([post](https://t.me/airfield1972/6694)) |
-| [zhangqiyang2-max](https://gist.githubusercontent.com/zhangqiyang2-max/47f1336a2e41af2e0f7f4313cc8c4bdc/raw/v2ray.txt) | V2Ray text feed | 70 of 87 passed across the V2Ray and Clash feeds ([post](https://t.me/airfield1972/6718)) |
-| [554mtntjch-code](https://gist.githubusercontent.com/554mtntjch-code/3a1a5e147050f64d72d5b8f5c6d4d61c/raw/v2ray.txt) | V2Ray text feed | 14 of 20 V2Ray configs passed ([post](https://t.me/airfield1972/6727)) |
-| [skysph-dev](https://gist.githubusercontent.com/skysph-dev/5b55986287442543485b30468db3eb65/raw/v2ray.txt) | V2Ray text feed | 15 of 21 passed in Throne; 20 of 21 in FLClash ([post](https://t.me/airfield1972/6746)) |
-| [st0rer Hysteria2](https://gist.githubusercontent.com/st0rer/52759ee3f68c3d4b2f2d53c307867471/raw/hy2_nodes.txt) | Plain-text Hysteria2 feed | 18 of 25 passed the Throne test ([post](https://t.me/airfield1972/6757)) |
-| [December000](https://gist.githubusercontent.com/December000/fd23d2530ffc29264297a5e687a79ecd/raw/base64.txt) | Base64 feed | 12 of 13 configs worked ([post](https://t.me/airfield1972/6697)) |
-| [V2RayN-VPN-Source](https://raw.githubusercontent.com/ivanprochorov2022-debug/V2RayN-VPN-Source/refs/heads/main/live.txt) | Large live feed; expect more candidates and duplicates | 54 configs passed speed checks from 5,087 parsed, after latency filtering ([post](https://t.me/airfield1972/6731)) |
-
-The following public channels are also scanned across their latest 50 posts. They were active on 2026-11-20.
-
-| Telegram channel | Reported result |
-|---|---|
-| [@pass_net](https://t.me/s/pass_net) | 38 of 65 configs worked ([post](https://t.me/airfield1972/6648)) |
-| [@VPsave](https://t.me/s/VPsave) | 48 of 138 passed testing ([post](https://t.me/airfield1972/6664)) |
-| [@configv2rayng](https://t.me/s/configv2rayng) | 197 of 592 passed speed checks ([post](https://t.me/airfield1972/6705)) |
-| [@ex_proxies](https://t.me/s/ex_proxies) | 127 of 335 passed speed checks ([post](https://t.me/airfield1972/6736)) |
-| [@FXxNET](https://t.me/s/FXxNET) | 202 passed speed checks among 215 configs with latency under 100 ms ([post](https://t.me/airfield1972/6691)) |
-
-### Additional live-tested subscriptions
-
-These feeds were checked on 2026-11-20. Their publishers report active retesting; the collector still retests configs from the local network.
-
-| Feed | Current contents | Retesting method |
-|---|---|---|
-| [0xRadikal top 100](https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/top100.txt) | 100 configs; auto-updated every 15 minutes | The publisher's verified tier requires a successful proxied request in all 3 runs ([repo and release details](https://github.com/0xRadikal/Free-v2ray-Configs/releases)) |
-| [ProxyRift light](https://raw.githubusercontent.com/rekt0ro/ProxyRift/main/subscriptions/light.txt) | 136 configs; refreshed hourly | The channel author's Throne test reported over 80% working in the light set ([test post](https://t.me/airfield1972/6570)) |
-| [Danialsamadi/v2go](https://raw.githubusercontent.com/Danialsamadi/v2go/main/AllConfigsSub.txt) | 648 configs in the current feed; recent scheduled runs are roughly twice daily | Each published config must pass a real Xray-core request to an HTTP 204 endpoint ([method](https://github.com/Danialsamadi/v2go#how-it-works), [recent runs](https://github.com/Danialsamadi/v2go/actions/workflows/update-configs.yml)) |
-
-> **Behind a proxy:** Telethon reads `ALL_PROXY` / `HTTPS_PROXY` env vars automatically (`socks5://`, `socks4://`, `http://`). If your Throne/sing-box proxy is not in the environment, prefix the command: `ALL_PROXY=socks5://127.0.0.1:<port> python -m vpn_collector.main --setup-tg`
+</details>
 
 ## Configuration
 
-Core collector parameters are in `vpn_collector/config.py`; GitHub collection settings use the environment variables below:
+Core settings are in `vpn_collector/config.py`. GitHub cache and request settings use environment variables:
 
-GitHub source collection stores recursive tree ETags and file contents by blob SHA in a local cache. The default cache directory is `~/.cache/vpn_collector/github` (or `$XDG_CACHE_HOME/vpn_collector/github`); set `VPN_COLLECTOR_CACHE_DIR` to use another directory. Starred repositories are refreshed at most once every 24 hours during collection; run `--sync-stars USERNAME` to force an immediate refresh. GitHub API requests are spaced by one second by default. When the API reports an exhausted quota, collection waits until the reset time and retries; if the quota is still exhausted after that retry, collection stops before replacing `candidates.txt`.
-
-| Environment variable | Default | Description |
+| Variable | Default | Purpose |
 |---|---|---|
-| `GITHUB_TOKEN` | unset | Optional GitHub API token; only sent to `api.github.com` |
-| `VPN_COLLECTOR_CACHE_DIR` | `~/.cache/vpn_collector/github` | Persistent ETag and blob cache directory |
-| `VPN_COLLECTOR_GITHUB_API_DELAY_SECONDS` | 1.0 | Minimum delay between GitHub REST API requests |
-| `VPN_COLLECTOR_STAR_SYNC_INTERVAL_SECONDS` | 86400 | Minimum interval between automatic starred-repository syncs |
+| `GITHUB_TOKEN` | unset | Optional token for `api.github.com` |
+| `VPN_COLLECTOR_CACHE_DIR` | `~/.cache/vpn_collector/github` | ETag and file-content cache |
+| `VPN_COLLECTOR_GITHUB_API_DELAY_SECONDS` | `1.0` | Minimum gap between REST API calls |
+| `VPN_COLLECTOR_TREE_REVALIDATE_SECONDS` | `3600` | Minimum interval between tree ETag checks |
+| `VPN_COLLECTOR_STAR_SYNC_INTERVAL_SECONDS` | `86400` | Automatic starred-repository refresh interval |
 
-| Parameter | Default | Description |
+The collector caches repository trees and files by Git blob SHA. It uses cached trees during a GitHub rate limit and reports `rate_used` / `rate_remaining` in API logs. Starred repositories are synced once per day; force an update with `--sync-stars USERNAME`.
+
+| Setting | Default | Purpose |
 |---|---|---|
 | `TCP_CONCURRENCY` | 100 | Parallel TCP checks |
 | `TCP_TIMEOUT` | 4.0s | TCP connection timeout |
 | `TCP_BATCH_SIZE` | 5000 | Configs per checkpoint batch |
 | `TUNNEL_CONCURRENCY` | 20 | Parallel sing-box tunnel tests |
-| `MIN_SPEED_MBPS` | 1.0 | Minimum acceptable tunnel speed |
-| `SINGBOX_STARTUP_TIMEOUT` | 3.0s | Max wait for sing-box SOCKS port |
-| `SPEEDTEST_EARLY_ABORT_AFTER` | 4.0s | Early abort speedtest after this many seconds |
-| `SPEEDTEST_EARLY_ABORT_FACTOR` | 0.5 | Abort if speed < factor × MIN_SPEED_MBPS |
-| `SUBSCRIPTION_MAX_URLS` | 100 | Check at most the first 100 unique HTTP(S) URLs found per `--subscriptions` run |
-| `SUBSCRIPTION_MAX_NODES` | 30 | Tunnel-test at most the first 30 parsed nodes from each subscription |
-| `SUBSCRIPTION_NODE_BATCH_SIZE` | 10 | Stop checking a subscription after its first passing group of 10 nodes |
-| `SUBSCRIPTION_REPO_FETCH_CONCURRENCY` | 10 | Parallel GitHub text-file fetches during subscription discovery |
+| `MIN_SPEED_MBPS` | 1.0 | Minimum tunnel speed |
+| `SINGBOX_STARTUP_TIMEOUT` | 3.0s | Wait for sing-box SOCKS port |
+| `SPEEDTEST_EARLY_ABORT_AFTER` | 4.0s | Time before early speed-test abort |
+| `SPEEDTEST_EARLY_ABORT_FACTOR` | 0.5 | Abort below this fraction of minimum speed |
+| `SUBSCRIPTION_MAX_URLS` | 100 | Unique URLs checked per discovery run |
+| `SUBSCRIPTION_MAX_NODES` | 30 | Nodes tested per subscription |
+| `SUBSCRIPTION_NODE_BATCH_SIZE` | 10 | Stop after the first passing batch |
+| `SUBSCRIPTION_REPO_FETCH_CONCURRENCY` | 10 | Parallel files fetched during subscription discovery |
 
-## Auto-push
+## Updates and logs
 
-Results are pushed to this repository automatically every 2 days via cron:
+Result files are pushed to this repository every two days by cron. Manually trigger a push with:
 
 ```bash
-# Manually trigger push
 bash scripts/git_push_results.sh
 ```
 
-## Logs
-
-```
-logs/vpn_collector.log   # main log
-logs/autopush.log        # auto-push cron log
-```
+Logs are in `logs/vpn_collector.log` and `logs/autopush.log`.
