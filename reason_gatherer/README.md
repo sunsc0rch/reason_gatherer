@@ -20,13 +20,17 @@ python -m vpn_collector.main --full
 
 | File | Description |
 |---|---|
-| [**known_good.txt**](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/known_good.txt) | All verified VPN configs; usable as a subscription URL |
-| [**subscriptions.txt**](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/subscriptions.txt) | Third-party subscription feeds with at least one working config |
-| [subscription_configs_3.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/subscription_configs_3.txt) | Working configs from subscription row 3 |
-| [subscription_configs_5.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/subscription_configs_5.txt) | Working configs from subscription row 5 |
-| [subscription_configs_7.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/subscription_configs_7.txt) | Working configs from subscription row 7 |
-| [Latest run](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-11-17.txt) | Most recent dated run |
-| [Latest recheck](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/recheck_2026-11-19.txt) | Previously verified configs that still pass |
+| [**known_good.txt**](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/known_good.txt) | All verified configs ever collected — use as subscription URL |
+| [**subscriptions.txt**](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/subscriptions.txt) | Third-party subscription URLs with at least one verified working node |
+| [subscription_configs_3.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/subscription_configs_3.txt) | Currently working configs from subscription row 3 |
+| [subscription_configs_5.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/subscription_configs_5.txt) | Currently working configs from subscription row 5 |
+| [subscription_configs_7.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/subscription_configs_7.txt) | Currently working configs from subscription row 7 |
+| [run_2026-11-17.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-11-17.txt) | Latest run |
+| [run_2026-11-07.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-11-07.txt) | Previous run |
+| [run_2026-10-31.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-10-31.txt) | Earlier run |
+| [run_2026-10-22.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-10-22.txt) | Earlier run |
+| [run_2026-10-09.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-10-09.txt) | Earlier run |
+| [recheck_2026-11-19.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/recheck_2026-11-19.txt) | Latest recheck (configs re-verified from known_good) |
 
 Configs marked `+++` passed the Claude.com access check. `---` means the tunnel passed its speed test but Claude.com was blocked.
 
