@@ -21,7 +21,7 @@ import requests
 from vpn_collector.config import (
     TCP_TIMEOUT, TCP_CONCURRENCY, PROXY_ENV_VARS, SINGBOX_SEARCH_PATHS,
     MIN_SPEED_MBPS, SPEEDTEST_URLS, CLAUDE_CHECK_URL,
-    CLAUDE_BLOCK_URL_KEYWORDS,
+    CLAUDE_BLOCK_URL_KEYWORDS, GEMINI_TEST_MODEL,
     SINGBOX_STARTUP_TIMEOUT, TUNNEL_CONCURRENCY, SOCKS_PORT_RANGE,
     SPEEDTEST_EARLY_ABORT_FACTOR, SPEEDTEST_EARLY_ABORT_AFTER,
     BLACKHOLE_TTLS, PING_TIMEOUT,
@@ -39,6 +39,14 @@ class UnsupportedTransportError(ValueError):
 class SpeedTestResult:
     speed_mbps: float | None
     error: str | None = None
+
+
+@dataclass(frozen=True)
+class GeminiTestResult:
+    status: str
+    detail: str = ""
+    http_status: int | None = None
+    google_center: str | None = None
 
 
 class FailureDiagnostics:
@@ -669,6 +677,161 @@ def check_claude_via_socks(socks_port: int) -> str:
     except Exception as e:
         logger.debug(f"Claude check failed: {type(e).__name__}: {e}")
         return "---"
+
+
+def _google_maps_center_via_socks(socks_port: int) -> str | None:
+    """Return the location Google Maps infers for this request's egress IP."""
+    try:
+        with _socks_session(socks_port) as session:
+            response = session.get("https://www.google.com/maps", timeout=15)
+            if response.status_code >= 400:
+                return None
+            match = re.search(
+                r"center=(-?\d+(?:\.\d+)?)(?:%2C|,)(-?\d+(?:\.\d+)?)",
+                response.text,
+                re.IGNORECASE,
+            )
+            if match:
+                return f"{float(match.group(1)):.5f},{float(match.group(2)):.5f}"
+    except Exception as exc:
+        logger.debug("Google Maps geo check failed: %s", type(exc).__name__)
+    return None
+
+
+def _classify_gemini_response(
+    response: requests.Response,
+    api_key: str,
+    probe_only: bool = False,
+) -> GeminiTestResult:
+    if response.status_code == 200:
+        try:
+            payload = response.json()
+        except ValueError:
+            return GeminiTestResult("invalid_response", "HTTP 200 with invalid JSON", 200)
+        if probe_only:
+            if isinstance(payload, dict) and isinstance(payload.get("totalTokens"), int):
+                return GeminiTestResult("api_reachable", "countTokens succeeded", 200)
+            return GeminiTestResult("invalid_response", "HTTP 200 without totalTokens", 200)
+        if isinstance(payload, dict) and "candidates" in payload:
+            return GeminiTestResult("available", "generateContent succeeded", 200)
+        return GeminiTestResult("invalid_response", "HTTP 200 without candidates", 200)
+
+    try:
+        payload = response.json()
+    except ValueError:
+        payload = {}
+    error = payload.get("error", {}) if isinstance(payload, dict) else {}
+    message = str(error.get("message", "")) if isinstance(error, dict) else ""
+    api_status = str(error.get("status", "")) if isinstance(error, dict) else ""
+    lowered = f"{api_status} {message}".lower()
+    safe_message = message.replace(api_key, "<redacted>").replace("\n", " ").strip()
+    safe_message = safe_message[:240] or f"Gemini API returned HTTP {response.status_code}"
+
+    if any(term in lowered for term in (
+        "user location is not supported", "region not supported", "unsupported region",
+    )):
+        return GeminiTestResult("region_blocked", safe_message, response.status_code)
+    if response.status_code == 429 or "resource_exhausted" in lowered or "quota" in lowered:
+        return GeminiTestResult("quota_limited", safe_message, response.status_code)
+    if response.status_code == 404 and ("model" in lowered or not message):
+        return GeminiTestResult("model_error", safe_message, response.status_code)
+    if response.status_code in (400, 401, 403) and any(term in lowered for term in (
+        "api key not valid", "api_key_invalid", "invalid api key", "api key is invalid",
+        "unauthenticated", "authentication",
+    )):
+        return GeminiTestResult("api_key_error", safe_message, response.status_code)
+    if "project has been denied access" in lowered:
+        return GeminiTestResult("account_denied", safe_message, response.status_code)
+    if response.status_code >= 500:
+        return GeminiTestResult("service_error", safe_message, response.status_code)
+    return GeminiTestResult("api_error", safe_message, response.status_code)
+
+
+def test_config_gemini(
+    config_line: str,
+    singbox_path: str,
+    socks_port: int,
+    api_key: str,
+    probe_only: bool = False,
+) -> GeminiTestResult:
+    """Check Gemini API reachability or generation through a sing-box tunnel."""
+    try:
+        cfg = generate_singbox_config(config_line, socks_port)
+    except UnsupportedTransportError as exc:
+        return GeminiTestResult("unsupported_transport", str(exc))
+    except Exception as exc:
+        return GeminiTestResult("config_error", f"{type(exc).__name__}: {exc}")
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as tmp:
+        json.dump(cfg, tmp)
+        cfg_path = tmp.name
+
+    proc = None
+    try:
+        with tempfile.TemporaryFile(mode="w+t", encoding="utf-8") as stderr_log:
+            try:
+                clean_env = {k: v for k, v in os.environ.items() if k not in PROXY_ENV_VARS}
+                proc = subprocess.Popen(
+                    [singbox_path, "run", "-c", cfg_path],
+                    stdout=subprocess.DEVNULL,
+                    stderr=stderr_log,
+                    env=clean_env,
+                )
+            except Exception as exc:
+                return GeminiTestResult("singbox_start_error", type(exc).__name__)
+
+            if not _wait_for_socks_port(socks_port, SINGBOX_STARTUP_TIMEOUT):
+                return GeminiTestResult("tunnel_start_error", "sing-box SOCKS port did not open")
+            if proc.poll() is not None:
+                return GeminiTestResult("tunnel_start_error", "sing-box exited before the check")
+
+            endpoint = "countTokens" if probe_only else "generateContent"
+            url = (
+                "https://generativelanguage.googleapis.com/v1beta/models/"
+                f"{GEMINI_TEST_MODEL}:{endpoint}"
+            )
+            body = {"contents": [{"parts": [{"text": "Gemini API connectivity probe"}]}]}
+            if not probe_only:
+                body["contents"] = [{"parts": [{"text": "Reply with exactly: OK"}]}]
+                body["generationConfig"] = {"maxOutputTokens": 24, "temperature": 0}
+            try:
+                with _socks_session(socks_port) as session:
+                    response = session.post(
+                        url,
+                        headers={
+                            "x-goog-api-key": api_key,
+                            "Content-Type": "application/json",
+                        },
+                        json=body,
+                        timeout=30,
+                    )
+                    result = _classify_gemini_response(response, api_key, probe_only)
+            except requests.RequestException as exc:
+                return GeminiTestResult("proxy_error", type(exc).__name__)
+
+            if result.status == "region_blocked":
+                center = _google_maps_center_via_socks(socks_port)
+                if center:
+                    result = GeminiTestResult(
+                        result.status,
+                        f"{result.detail}; Google Maps center={center}",
+                        result.http_status,
+                        center,
+                    )
+            return result
+    except Exception as exc:
+        return GeminiTestResult("tunnel_test_error", f"{type(exc).__name__}: {exc}")
+    finally:
+        if proc and proc.poll() is None:
+            proc.terminate()
+            try:
+                proc.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+        try:
+            os.unlink(cfg_path)
+        except Exception:
+            pass
 
 
 def _read_singbox_errors(log_file) -> str:

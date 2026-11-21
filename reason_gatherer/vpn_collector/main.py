@@ -4,6 +4,9 @@ import logging
 import random as _random
 import subprocess
 import sys
+import csv
+import os
+import time
 from collections import Counter
 from datetime import date
 from pathlib import Path
@@ -14,8 +17,9 @@ WARP_SOCKS_PROXY = ("127.0.0.1", 40000)
 from vpn_collector.config import (
     RESULTS_DIR, SOURCES_FILE, LOGS_DIR, MAX_RUN_FILES, SINGBOX_SEARCH_PATHS,
     TCP_BATCH_SIZE, PRIVILEGED_MIN_DAYS, PRIVILEGED_RECHECK_RETRIES,
+    GEMINI_TEST_MODEL, GEMINI_TEST_DEFAULT_SAMPLE, GEMINI_TEST_INTERVAL_SECONDS,
 )
-from vpn_collector.parser import extract_host_port
+from vpn_collector.parser import extract_host_port, is_vpn_line
 from vpn_collector.sources import (
     GitHubRateLimitError, add_source, fetch_all_configs, sync_stars,
 )
@@ -26,6 +30,7 @@ from vpn_collector.subscriptions import (
 )
 from vpn_collector.tester import (
     tcp_filter, tunnel_filter, find_singbox, test_config_tunnel,
+    test_config_gemini,
     classify_endpoints, socks5_connect,
 )
 from vpn_collector.storage import (
@@ -35,6 +40,7 @@ from vpn_collector.storage import (
     load_config_meta, save_config_meta, update_meta_first_seen,
     load_privileged, save_privileged,
     save_subscriptions, save_subscription_configs,
+    split_configs_by_protocol,
 )
 
 
@@ -253,9 +259,140 @@ def cmd_test_warp(proxy: tuple[str, int] = WARP_SOCKS_PROXY) -> None:
         progress_label="--test-warp",
     ))
     rotate_run_files(warp_results_dir, MAX_RUN_FILES)
+    part_counts = split_configs_by_protocol(
+        warp_results_dir / "known_good.txt",
+        warp_results_dir / "parts",
+    )
+    _log.info(
+        "WARP copy parts: %d protocols | %d files → results/warp/parts/INDEX.md",
+        len(part_counts), sum(part_counts.values()),
+    )
     _log.info(
         "Done: %d new configs saved via WARP → results/warp/run_%s.txt",
         passed[0], run_date,
+    )
+
+
+def cmd_test_gemini(
+    source_file: Path | None = None,
+    sample: int | None = None,
+    probe_only: bool = False,
+) -> None:
+    """Probe Gemini or check generation through previously verified configs."""
+    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    if not api_key:
+        raise SystemExit(
+            "GEMINI_API_KEY is not set. Export a Gemini API key before --test-gemini."
+        )
+
+    source_file = source_file or RESULTS_DIR / "known_good.txt"
+    if not source_file.exists():
+        raise SystemExit(f"Live config file not found: {source_file}")
+    configs = [
+        line.strip()
+        for line in source_file.read_text(errors="replace").splitlines()
+        if line.strip() and not line.strip().startswith("#") and is_vpn_line(line.strip())
+    ]
+    if not configs:
+        raise SystemExit(f"No live configs found in {source_file}.")
+    if sample is None:
+        sample = min(GEMINI_TEST_DEFAULT_SAMPLE, len(configs))
+        _log.info(
+            "No --sample provided; selecting a random sample of %d configs",
+            sample,
+        )
+    elif sample < 1:
+        raise SystemExit("--sample must be a positive number")
+    if sample and sample < len(configs):
+        configs = _random.sample(configs, sample)
+        _log.info("Sampled %d live configs for Gemini check", sample)
+
+    singbox_path = find_singbox()
+    if not singbox_path:
+        raise SystemExit(
+            "sing-box binary not found. Searched: " + ", ".join(SINGBOX_SEARCH_PATHS)
+        )
+
+    gemini_dir = RESULTS_DIR / "gemini"
+    gemini_dir.mkdir(parents=True, exist_ok=True)
+    run_date = date.today().isoformat()
+    if source_file.resolve() == (RESULTS_DIR / "warp" / "known_good.txt").resolve():
+        source_tag = "warp"
+    elif source_file.resolve() == (RESULTS_DIR / "known_good.txt").resolve():
+        source_tag = "direct"
+    else:
+        source_tag = "".join(c for c in source_file.stem if c.isalnum() or c in "-_") or "custom"
+    report_prefix = "probe_report" if probe_only else "report"
+    result_prefix = "api_reachable" if probe_only else "available"
+    report_path = gemini_dir / f"{report_prefix}_{run_date}_{source_tag}.csv"
+    available_path = gemini_dir / f"{result_prefix}_{run_date}_{source_tag}.txt"
+    counts: Counter[str] = Counter()
+    started = time.monotonic()
+    stop_statuses = {"quota_limited", "api_key_error", "model_error", "account_denied"}
+
+    progress_label = "--test-gemini-probe" if probe_only else "--test-gemini"
+    _log.info(
+        "%s: %d live configs from %s; model=%s; API interval=%ss",
+        progress_label,
+        len(configs), source_file, GEMINI_TEST_MODEL, GEMINI_TEST_INTERVAL_SECONDS,
+    )
+    with report_path.open("w", encoding="utf-8", newline="") as report, available_path.open(
+        "w", encoding="utf-8"
+    ) as available:
+        writer = csv.writer(report)
+        writer.writerow(("status", "http_status", "google_maps_center", "detail", "config"))
+        report.flush()
+
+        previous_finished: float | None = None
+        for index, config in enumerate(configs, start=1):
+            if previous_finished is not None:
+                wait = GEMINI_TEST_INTERVAL_SECONDS - (time.monotonic() - previous_finished)
+                if wait > 0:
+                    time.sleep(wait)
+            result = test_config_gemini(
+                config, singbox_path, find_free_socks_port(), api_key, probe_only,
+            )
+            previous_finished = time.monotonic()
+            counts[result.status] += 1
+            writer.writerow((
+                result.status,
+                result.http_status or "",
+                result.google_center or "",
+                result.detail,
+                config,
+            ))
+            report.flush()
+            success_status = "api_reachable" if probe_only else "available"
+            if result.status == success_status:
+                available.write(config + "\n")
+                available.flush()
+
+            _log.info(
+                "%s [%d/%d] %s%s",
+                progress_label, index, len(configs), result.status,
+                f" (HTTP {result.http_status})" if result.http_status else "",
+            )
+            if index % 5 == 0 or index == len(configs):
+                summary = ", ".join(
+                    f"{status}={amount}" for status, amount in sorted(counts.items())
+                )
+                _log.info(
+                    "%s progress: %d/%d (%.0f%%) | %s | elapsed %.0fs",
+                    progress_label, index, len(configs), 100 * index / len(configs), summary,
+                    time.monotonic() - started,
+                )
+            if result.status in stop_statuses:
+                _log.warning(
+                    "Stopping Gemini checks after %s; remaining configs were not tested",
+                    result.status,
+                )
+                break
+
+    _log.info(
+        "Gemini %s report: %s | configs: %s | statuses: %s",
+        "probe" if probe_only else "generation",
+        report_path, available_path,
+        ", ".join(f"{status}={amount}" for status, amount in sorted(counts.items())) or "none",
     )
 
 
@@ -649,6 +786,12 @@ def main() -> None:
     mode.add_argument("--test", action="store_true", help="Tunnel test candidates.txt → known_good.txt")
     mode.add_argument("--test-warp", action="store_true",
                       help="Tunnel test candidates.txt through warp-cli SOCKS → results/warp/")
+    mode.add_argument("--test-gemini", nargs="?", const=str(RESULTS_DIR / "known_good.txt"),
+                      metavar="FILE",
+                      help="Test Gemini API through live configs (default: results/known_good.txt)")
+    mode.add_argument("--test-gemini-probe", nargs="?",
+                      const=str(RESULTS_DIR / "known_good.txt"), metavar="FILE",
+                      help="Check Gemini API with countTokens (no model inference)")
     mode.add_argument("--full", action="store_true", help="Run --collect then --test")
     mode.add_argument("--recheck", action="store_true", help="Re-test known_good.txt → recheck_YYYY-MM-DD.txt (known_good untouched)")
     mode.add_argument("--subscriptions", action="store_true", help="Discover and validate subscription URLs from configured sources")
@@ -662,7 +805,7 @@ def main() -> None:
     parser.add_argument("--add-source", metavar="SOURCE", help="Add GitHub repo (user/repo) or raw URL")
     parser.add_argument("--sync-stars", metavar="USERNAME", help="Sync GitHub starred repos")
     parser.add_argument("--sample", type=int, metavar="N",
-                        help="Randomly sample N configs before TCP filter (e.g. --sample 30000)")
+                        help="Randomly sample N configs (--test-gemini defaults to 10)")
     parser.add_argument("--proxy", metavar="HOST:PORT",
                         help="--diagnose only: SOCKS5 egress to prove an endpoint is "
                              "ISP-blocked rather than dead (e.g. WARP 127.0.0.1:40000)")
@@ -673,7 +816,8 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    if not any([args.collect, args.test, args.test_warp, args.full, args.recheck, args.subscriptions,
+    if not any([args.collect, args.test, args.test_warp, args.test_gemini,
+                args.test_gemini_probe, args.full, args.recheck, args.subscriptions,
                 args.test_subscriptions, args.test_subscription is not None,
                 args.stats, args.diagnose is not None, args.add_source, args.sync_stars, args.setup_tg]):
         parser.print_help()
@@ -687,6 +831,12 @@ def main() -> None:
         cmd_test()
     elif args.test_warp:
         cmd_test_warp()
+    elif args.test_gemini:
+        cmd_test_gemini(source_file=Path(args.test_gemini), sample=args.sample)
+    elif args.test_gemini_probe:
+        cmd_test_gemini(
+            source_file=Path(args.test_gemini_probe), sample=args.sample, probe_only=True,
+        )
     elif args.full:
         cmd_full(sample=args.sample)
     elif args.recheck:

@@ -46,12 +46,25 @@ python -m vpn_collector.main --full
 python -m vpn_collector.main --collect
 python -m vpn_collector.main --test
 
+# Check Gemini API generation through live configs in results/known_good.txt
+export GEMINI_API_KEY="<your Gemini API key>"
+python -m vpn_collector.main --test-gemini
+
+# API/auth/connectivity preflight without model inference
+python -m vpn_collector.main --test-gemini-probe
+
+# Check a sample from the configs tested through WARP
+python -m vpn_collector.main --test-gemini results/warp/known_good.txt --sample 30
+
 # Test remaining candidates through WARP's local SOCKS proxy
 python -m vpn_collector.main --test-warp
 
 # Run on a random sample
 python -m vpn_collector.main --collect --sample 30000
 python -m vpn_collector.main --full    --sample 50000
+
+# Check a random subset of live configs through Gemini
+python -m vpn_collector.main --test-gemini --sample 30
 
 # Re-test known_good configs without changing known_good.txt
 python -m vpn_collector.main --recheck
@@ -211,7 +224,9 @@ echo "$USER ALL=(ALL) NOPASSWD: /usr/local/bin/awg,/usr/local/bin/awg-quick,/usr
 
 ## WARP and network diagnosis
 
-`--test-warp` tests candidates through the local WARP SOCKS5 proxy (`127.0.0.1:40000`) and stores results under `results/warp/`. Hysteria, Hysteria2, Hy2, and TUIC are skipped because this SOCKS proxy does not carry UDP. For ISP-block diagnosis, pass the same SOCKS address to `--diagnose --proxy`.
+`--test-warp` tests candidates through the local WARP SOCKS5 proxy (`127.0.0.1:40000`) and stores results under `results/warp/`. It also refreshes protocol-specific copy parts in `results/warp/parts/INDEX.md`, with at most 250 configs or 64 KiB per file. Hysteria, Hysteria2, Hy2, and TUIC are skipped because this SOCKS proxy does not carry UDP. For ISP-block diagnosis, pass the same SOCKS address to `--diagnose --proxy`.
+
+`--test-gemini-probe` checks the API through live configs with `countTokens`, without using generation quota. `--test-gemini` sends a small generation request and uses Gemini quota. Both default to 10 configs from `results/known_good.txt`; set `GEMINI_API_KEY` to run them, or pass another file and `--sample N`. Reports are saved in `results/gemini/`. The probe does not guarantee generation access.
 
 Use `warp-cli mode proxy` for these checks. Do not use `warp-cli mode warp`: system-tunnel mode routes direct probes through WARP and makes blocked endpoints appear reachable.
 

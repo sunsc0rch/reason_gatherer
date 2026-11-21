@@ -34,6 +34,9 @@ SPEEDTEST_URLS = [
 CLAUDE_CHECK_URL = "https://claude.com/"
 # Only check the final redirect URL for hard ISP-level block pages.
 CLAUDE_BLOCK_URL_KEYWORDS = ["/blocked", "/unavailable", "/restricted"]
+GEMINI_TEST_MODEL = os.environ.get("GEMINI_TEST_MODEL", "gemini-3.8-flash")
+GEMINI_TEST_DEFAULT_SAMPLE = 10
+GEMINI_TEST_INTERVAL_SECONDS = 12.0
 
 SINGBOX_SEARCH_PATHS = [
     "/opt/throne",

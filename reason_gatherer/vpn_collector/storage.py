@@ -43,6 +43,86 @@ def load_known_good_configs(results_dir: Path) -> list[str]:
     return result
 
 
+def split_configs_by_protocol(
+    source_file: Path,
+    output_dir: Path,
+    max_configs: int = 250,
+    max_bytes: int = 64 * 1024,
+) -> dict[str, int]:
+    """Write copy-friendly config parts grouped by protocol.
+
+    Each generated text file contains config lines only and stays under both
+    limits where possible. The dedicated output directory is regenerated on
+    every call so its index never points at stale parts.
+    """
+    if max_configs < 1 or max_bytes < 1:
+        raise ValueError("max_configs and max_bytes must be positive")
+
+    protocols: dict[str, list[str]] = {}
+    source_text = (
+        source_file.read_text(encoding="utf-8", errors="replace")
+        if source_file.exists() else ""
+    )
+    for raw_line in source_text.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or not is_vpn_line(line):
+            continue
+        scheme, separator, _ = line.partition("://")
+        protocol = scheme.lower() if separator and scheme.isalnum() else "other"
+        protocols.setdefault(protocol, []).append(line)
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    for old_part in output_dir.glob("*_*.txt"):
+        suffix = old_part.stem.rsplit("_", 1)[-1]
+        if suffix.isdigit():
+            old_part.unlink()
+
+    index_lines = [
+        "# WARP-tested configs, split for copy and paste",
+        "",
+        f"Source: `{source_file.name}`",
+        f"Total configs: {sum(map(len, protocols.values()))}",
+        f"Each part has at most {max_configs} configs and {max_bytes // 1024} KiB.",
+        "Choose a protocol, then copy one or more part files. Files contain only config lines.",
+        "",
+    ]
+    part_counts: dict[str, int] = {}
+
+    for protocol, configs in sorted(protocols.items()):
+        chunks: list[list[str]] = []
+        current: list[str] = []
+        current_bytes = 0
+        for config in configs:
+            config_bytes = len(config.encode("utf-8")) + 1
+            if current and (
+                len(current) >= max_configs
+                or current_bytes + config_bytes > max_bytes
+            ):
+                chunks.append(current)
+                current = []
+                current_bytes = 0
+            current.append(config)
+            current_bytes += config_bytes
+        if current:
+            chunks.append(current)
+
+        part_counts[protocol] = len(chunks)
+        index_lines.extend((f"## {protocol} ({len(configs)} configs)", ""))
+        offset = 0
+        for part_number, chunk in enumerate(chunks, start=1):
+            filename = f"{protocol}_{part_number:03d}.txt"
+            (output_dir / filename).write_text("\n".join(chunk) + "\n", encoding="utf-8")
+            first = offset + 1
+            offset += len(chunk)
+            index_lines.append(
+                f"- [{filename}]({filename}) — {len(chunk)} configs, {first}–{offset}"
+            )
+        index_lines.append("")
+
+    (output_dir / "INDEX.md").write_text("\n".join(index_lines), encoding="utf-8")
+    return part_counts
+
+
 def rewrite_known_good(results_dir: Path, configs: list[str]) -> None:
     """Overwrite known_good.txt with the given config list and a fresh header."""
     known_good = results_dir / "known_good.txt"
