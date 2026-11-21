@@ -313,6 +313,23 @@ def cmd_test_gemini(
             "sing-box binary not found. Searched: " + ", ".join(SINGBOX_SEARCH_PATHS)
         )
 
+    warp_pool_file = (RESULTS_DIR / "warp" / "known_good.txt").resolve()
+    dialer_proxy = WARP_SOCKS_PROXY if source_file.resolve() == warp_pool_file else None
+    if dialer_proxy is not None:
+        if not asyncio.run(socks5_connect(
+            dialer_proxy[0], dialer_proxy[1], "1.1.1.1", 443, 5.0,
+        )):
+            raise SystemExit(
+                f"WARP SOCKS5 proxy {dialer_proxy[0]}:{dialer_proxy[1]} is not reachable; "
+                "start warp-cli in proxy mode"
+            )
+        _log.info(
+            "Gemini route: WARP SOCKS %s:%d → sing-box → live config",
+            dialer_proxy[0], dialer_proxy[1],
+        )
+    else:
+        _log.info("Gemini route: sing-box → live config (direct)")
+
     gemini_dir = RESULTS_DIR / "gemini"
     gemini_dir.mkdir(parents=True, exist_ok=True)
     run_date = date.today().isoformat()
@@ -350,7 +367,8 @@ def cmd_test_gemini(
                 if wait > 0:
                     time.sleep(wait)
             result = test_config_gemini(
-                config, singbox_path, find_free_socks_port(), api_key, probe_only,
+                config, singbox_path, find_free_socks_port(), api_key,
+                probe_only=probe_only, dialer_proxy=dialer_proxy,
             )
             previous_finished = time.monotonic()
             counts[result.status] += 1
@@ -368,9 +386,12 @@ def cmd_test_gemini(
                 available.flush()
 
             _log.info(
-                "%s [%d/%d] %s%s",
+                "%s [%d/%d] %s%s%s",
                 progress_label, index, len(configs), result.status,
                 f" (HTTP {result.http_status})" if result.http_status else "",
+                f" — {result.detail}" if result.detail and result.status not in {
+                    "available", "api_reachable",
+                } else "",
             )
             if index % 5 == 0 or index == len(configs):
                 summary = ", ".join(

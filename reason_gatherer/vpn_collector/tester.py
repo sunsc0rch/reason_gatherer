@@ -753,14 +753,36 @@ def test_config_gemini(
     socks_port: int,
     api_key: str,
     probe_only: bool = False,
+    dialer_proxy: tuple[str, int] | None = None,
 ) -> GeminiTestResult:
     """Check Gemini API reachability or generation through a sing-box tunnel."""
+
+    def diagnostic(detail: str, stderr_log=None) -> str:
+        parts = [detail]
+        if stderr_log is not None:
+            singbox_detail = _read_singbox_errors(stderr_log)
+            if singbox_detail:
+                parts.append(f"sing-box: {singbox_detail}")
+        text = " | ".join(parts)
+        if api_key:
+            text = text.replace(api_key, "<redacted>")
+        if config_line:
+            text = text.replace(config_line, "<config>")
+        text = re.sub(
+            r"(?i)\b([a-z][a-z0-9+.-]*://)[^\s/@]+@",
+            r"\1<redacted>@",
+            text,
+        )
+        return re.sub(r"\s+", " ", text).strip()[:600]
+
     try:
-        cfg = generate_singbox_config(config_line, socks_port)
+        cfg = generate_singbox_config(
+            config_line, socks_port, dialer_proxy=dialer_proxy,
+        )
     except UnsupportedTransportError as exc:
-        return GeminiTestResult("unsupported_transport", str(exc))
+        return GeminiTestResult("unsupported_transport", diagnostic(str(exc)))
     except Exception as exc:
-        return GeminiTestResult("config_error", f"{type(exc).__name__}: {exc}")
+        return GeminiTestResult("config_error", diagnostic(f"{type(exc).__name__}: {exc}"))
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as tmp:
         json.dump(cfg, tmp)
@@ -778,12 +800,15 @@ def test_config_gemini(
                     env=clean_env,
                 )
             except Exception as exc:
-                return GeminiTestResult("singbox_start_error", type(exc).__name__)
+                detail = diagnostic(f"{type(exc).__name__}: {exc}", stderr_log)
+                return GeminiTestResult("singbox_start_error", detail)
 
             if not _wait_for_socks_port(socks_port, SINGBOX_STARTUP_TIMEOUT):
-                return GeminiTestResult("tunnel_start_error", "sing-box SOCKS port did not open")
+                detail = diagnostic("sing-box SOCKS port did not open", stderr_log)
+                return GeminiTestResult("tunnel_start_error", detail)
             if proc.poll() is not None:
-                return GeminiTestResult("tunnel_start_error", "sing-box exited before the check")
+                detail = diagnostic("sing-box exited before the check", stderr_log)
+                return GeminiTestResult("tunnel_start_error", detail)
 
             endpoint = "countTokens" if probe_only else "generateContent"
             url = (
@@ -807,7 +832,8 @@ def test_config_gemini(
                     )
                     result = _classify_gemini_response(response, api_key, probe_only)
             except requests.RequestException as exc:
-                return GeminiTestResult("proxy_error", type(exc).__name__)
+                detail = diagnostic(f"{type(exc).__name__}: {exc}", stderr_log)
+                return GeminiTestResult("proxy_error", detail)
 
             if result.status == "region_blocked":
                 center = _google_maps_center_via_socks(socks_port)
@@ -820,7 +846,7 @@ def test_config_gemini(
                     )
             return result
     except Exception as exc:
-        return GeminiTestResult("tunnel_test_error", f"{type(exc).__name__}: {exc}")
+        return GeminiTestResult("tunnel_test_error", diagnostic(f"{type(exc).__name__}: {exc}"))
     finally:
         if proc and proc.poll() is None:
             proc.terminate()
