@@ -30,7 +30,7 @@ python -m vpn_collector.main --full
 | [run_2026-10-31.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-10-31.txt) | Earlier run |
 | [run_2026-10-22.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-10-22.txt) | Earlier run |
 | [run_2026-10-09.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/run_2026-10-09.txt) | Earlier run |
-| [recheck_2026-11-22.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/recheck_2026-11-22.txt) | Latest recheck (configs re-verified from known_good) |
+| [recheck_2026-11-25.txt](https://raw.githubusercontent.com/sunsc0rch/reason_gatherer/main/reason_gatherer/results/recheck_2026-11-25.txt) | Latest recheck (configs re-verified from known_good) |
 
 Configs marked `+++` passed the Claude.com access check. `---` means the tunnel passed its speed test but Claude.com was blocked.
 
